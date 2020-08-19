@@ -15,7 +15,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, bail};
 use arrayref::array_ref;
 use gimli::{
     read::{CfaRule, DebugFrame, UnwindSection},
@@ -457,6 +457,10 @@ fn backtrace(
     let mut registers = Registers::new(lr, sp, core);
     println!("stack backtrace:");
     loop {
+        // FIXME: Add some sanity check for the PC value to avoid unwinding a corrupted stack.
+        // For example, PC should always have the LSb (thumb bit) set, and should be located within
+        // `.text` (it is possible to execute code from RAM dynamically, but we cannot unwind that).
+
         let name = range_names
             .binary_search_by(|rn| {
                 if rn.0.contains(&pc) {
@@ -471,18 +475,19 @@ fn backtrace(
             .unwrap_or("<unknown>");
         println!("{:>4}: {:#010x} - {}", frame, pc, name);
 
-        let uwt_row = debug_frame.unwind_info_for_address(bases, ctx, pc.into(), DebugFrame::cie_from_offset).with_context(|| {
-            "debug information is missing. Likely fixes:
-1. compile the Rust code with `debug = 1` or higher. This is configured in the `profile.*` section of Cargo.toml
-2. use a recent version of the `cortex-m` crates (e.g. cortex-m 0.6.3 or newer). Check versions in Cargo.lock
-3. if linking to C code, compile the C code with the `-g` flag"
-        })?;
+        let mut cfa_changed = false;
+        if let Ok(uwt_row) =
+            debug_frame.unwind_info_for_address(bases, ctx, pc.into(), DebugFrame::cie_from_offset)
+        {
+            cfa_changed = registers.update_cfa(uwt_row.cfa())?;
 
-        let cfa_changed = registers.update_cfa(uwt_row.cfa())?;
-
-        for (reg, rule) in uwt_row.registers() {
-            registers.update(reg, rule)?;
+            for (reg, rule) in uwt_row.registers() {
+                registers.update(reg, rule)?;
+            }
         }
+
+        // We might not find unwind info for some PC values. In that case, we assume that unwinding
+        // is trivial and requires no extra care (ie. we just follow LR).
 
         let lr = registers.get(LR)?;
         if lr == LR_END {
@@ -490,7 +495,8 @@ fn backtrace(
         }
 
         if !cfa_changed && lr == pc {
-            println!("error: the stack appears to be corrupted beyond this point");
+            // This can happen when we're trying to unwind past the reset handler without having
+            // unwind info in place that restores the reset value of LR (0xFFFFFFFF / LR_END).
             return Ok(top_exception);
         }
 
@@ -521,9 +527,9 @@ fn backtrace(
             pc = stacked.pc;
         } else {
             if lr & 1 == 0 {
-                bail!("bug? LR ({:#010x}) didn't have the Thumb bit set", lr)
+                bail!("bug? LR ({:#010x}) didn't have the Thumb bit set", lr);
             }
-            pc = lr & !1;
+            pc = lr;
         }
 
         frame += 1;
