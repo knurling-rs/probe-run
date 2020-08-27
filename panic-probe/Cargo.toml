@@ -8,6 +8,7 @@ description = "Panic handler that exits `probe-run` with an error code"
 [dependencies]
 cortex-m = "0.6.3"
 cortex-m-rt = "0.6.12"
+probe-run-ctrl = { path = "../probe-run-ctrl", version = "0.1.0" }
 
 [dependencies.rtt-target]
 version = "0.2.2"

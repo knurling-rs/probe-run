@@ -580,6 +580,7 @@ dependencies = [
  "cortex-m",
  "cortex-m-rt",
  "defmt",
+ "probe-run-ctrl",
  "rtt-target",
 ]
 
@@ -667,6 +668,13 @@ dependencies = [
  "rustc-demangle",
  "structopt",
  "xmas-elf",
+]
+
+[[package]]
+name = "probe-run-ctrl"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
 ]
 
 [[package]]

@@ -75,15 +75,12 @@ mod imp {
             }
         }
 
-        asm::udf();
+        probe_run_ctrl::abort();
     }
 
     #[exception]
     fn HardFault(_: &ExceptionFrame) -> ! {
-        loop {
-            // Make `probe-run` print the backtrace and exit.
-            asm::bkpt();
-        }
+        probe_run_ctrl::abort();
     }
 }
 

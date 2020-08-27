@@ -1,0 +1,14 @@
+[package]
+name = "probe-run-ctrl"
+version = "0.1.0"
+authors = ["The Knurling Authors"]
+edition = "2018"
+description = "Control `probe-run` from an embedded app"
+categories = ["command-line-utilities", "embedded", "no-std"]
+keywords = ["knurling", "probe", "host"]
+license = "MIT OR Apache-2.0"
+readme = "../README.md"
+repository = "https://github.com/knurling-rs/probe-run"
+
+[dependencies]
+cortex-m = "0.6.3"

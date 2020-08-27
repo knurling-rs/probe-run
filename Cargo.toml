@@ -29,4 +29,4 @@ xmas-elf = "0.7.0"
 defmt = ["elf2table", "decoder"]
 
 [workspace]
-members = ["panic-probe"]
+members = ["panic-probe", "probe-run-ctrl"]
