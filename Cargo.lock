@@ -8,7 +8,7 @@ checksum = "1b6a2d3371669ab3ca9797670853d61402b03d0b4b9ebf33d677dfa720203072"
 dependencies = [
  "cpp_demangle",
  "fallible-iterator",
- "gimli 0.22.0",
+ "gimli",
  "object 0.20.0",
  "rustc-demangle",
  "smallvec",
@@ -117,6 +117,16 @@ name = "bitflags"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
+
+[[package]]
+name = "bitvec"
+version = "0.17.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41262f11d771fd4a61aa3ce019fca363b4b6c282fca9da2a31186d3965a47a5c"
+dependencies = [
+ "either",
+ "radium",
+]
 
 [[package]]
 name = "byteorder"
@@ -253,7 +263,7 @@ source = "git+https://github.com/knurling-rs/defmt?rev=a6dc090#a6dc0904872cd3f4a
 dependencies = [
  "anyhow",
  "defmt-decoder",
- "gimli 0.22.0",
+ "gimli",
  "object 0.21.1",
  "serde",
  "serde_json",
@@ -281,21 +291,16 @@ version = "0.1.0"
 source = "git+https://github.com/knurling-rs/defmt.git?rev=be7f4a7cbe#be7f4a7cbe8a61e005f55fed1a41b11f85cb8ed6"
 
 [[package]]
-name = "derivative"
-version = "2.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb582b60359da160a9477ee80f15c8d784c477e69c217ef2cdd4169c24ea380f"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "dtoa"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "134951f4028bdadb9b84baf4232681efbf277da25144b9b0ad65df75946c422b"
+
+[[package]]
+name = "either"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd56b59865bce947ac5958779cfa508f6c3b9497cc762b7e24a12d11ccde2c4f"
 
 [[package]]
 name = "enum-primitive-derive"
@@ -364,17 +369,6 @@ checksum = "501466ecc8a30d1d3b7fc9229b122b2ce8ed6e9d9223f1138d4babb253e51817"
 dependencies = [
  "typenum",
  "version_check",
-]
-
-[[package]]
-name = "gimli"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcc8e0c9bce37868955864dbecd2b1ab2bdf967e6f28066d65aaac620444b65c"
-dependencies = [
- "fallible-iterator",
- "indexmap",
- "stable_deref_trait",
 ]
 
 [[package]]
@@ -520,6 +514,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3286f09f7d4926fc486334f28d8d2e6ebe4f7f9994494b6dab27ddfad2c9b11b"
 
 [[package]]
+name = "libftdi1-sys"
+version = "1.0.0-alpha3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b362baf5161887215d5c66fc697ff94528fba8d80518deab2fe3a75817c408e"
+dependencies = [
+ "cfg-if 0.1.10",
+ "libc",
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
 name = "libusb1-sys"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -582,6 +588,10 @@ name = "object"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37fd5004feb2ce328a52b0b3d01dbf4ffff72583493900ed15f22d4111c51693"
+dependencies = [
+ "flate2",
+ "wasmparser",
+]
 
 [[package]]
 name = "panic-probe"
@@ -607,25 +617,26 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "probe-rs"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ede5b4a775f2d77fb049a045683ad23ba2ac8901945825ef004551695322e09a"
+checksum = "e4a77b990d16bd52c09fb8fd390f2d699d06adcc041bca1855c5546c3284bc13"
 dependencies = [
  "anyhow",
  "base64",
  "bitfield",
- "derivative",
+ "bitvec",
  "enum-primitive-derive",
- "gimli 0.21.0",
+ "gimli",
  "goblin",
  "hidapi",
  "ihex",
  "jaylink",
  "jep106",
  "lazy_static",
+ "libftdi1-sys",
  "log",
  "num-traits",
- "object 0.20.0",
+ "object 0.21.1",
  "probe-rs-t2rust",
  "rusb",
  "scroll",
@@ -637,9 +648,9 @@ dependencies = [
 
 [[package]]
 name = "probe-rs-rtt"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c45be9a80d981475a5e982adf0890949fcfbe60fb2b47ba38d4bd7cc82541193"
+checksum = "e08122b8ba5a934dd10a16a0cd0cab4f1ada1be500782b77bc49c1cd93cb8b03"
 dependencies = [
  "log",
  "probe-rs",
@@ -670,7 +681,7 @@ dependencies = [
  "colored",
  "defmt-decoder",
  "defmt-elf2table",
- "gimli 0.22.0",
+ "gimli",
  "log",
  "object 0.20.0",
  "probe-rs",
@@ -727,6 +738,12 @@ name = "r0"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2a38df5b15c8d5c7e8654189744d8e396bddc18ad48041a500ce52d6948941f"
+
+[[package]]
+name = "radium"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "def50a86306165861203e7f84ecffbbdfdea79f0e51039b33de1e952358c47ac"
 
 [[package]]
 name = "redox_syscall"
@@ -922,9 +939,9 @@ dependencies = [
 
 [[package]]
 name = "svg"
-version = "0.7.2"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3685c82a045a6af0c488f0550b0f52b4c77d2a52b0ca8aba719f9d268fa96965"
+checksum = "0b65a64d32a41db2a8081aa03c1ccca26f246ff681add693f8b01307b137da79"
 
 [[package]]
 name = "syn"
