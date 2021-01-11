@@ -1,5 +1,3 @@
-mod logger;
-
 use core::{
     cmp,
     convert::TryInto,
@@ -36,6 +34,8 @@ use probe_rs::{
 };
 use probe_rs_rtt::{Rtt, ScanRegion, UpChannel};
 use structopt::StructOpt;
+
+use probe_run::logger;
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 const STACK_CANARY: u8 = 0xAA;
@@ -435,46 +435,7 @@ fn notmain() -> Result<i32, anyhow::Error> {
                 if let Some(table) = table.as_ref() {
                     frames.extend_from_slice(&read_buf[..num_bytes_read]);
 
-                    loop {
-                        match defmt_decoder::decode(&frames, table) {
-                            Ok((frame, consumed)) => {
-                                // NOTE(`[]` indexing) all indices in `table` have already been
-                                // verified to exist in the `locs` map
-                                let loc = locs.as_ref().map(|locs| &locs[&frame.index()]);
-
-                                let (mut file, mut line, mut mod_path) = (None, None, None);
-                                if let Some(loc) = loc {
-                                    let relpath =
-                                        if let Ok(relpath) = loc.file.strip_prefix(&current_dir) {
-                                            relpath
-                                        } else {
-                                            // not relative; use full path
-                                            &loc.file
-                                        };
-                                    file = Some(relpath.display().to_string());
-                                    line = Some(loc.line as u32);
-                                    mod_path = Some(loc.module.clone());
-                                }
-
-                                // Forward the defmt frame to our logger.
-                                logger::log_defmt(
-                                    &frame,
-                                    file.as_deref(),
-                                    line,
-                                    mod_path.as_ref().map(|s| &**s),
-                                );
-
-                                let num_frames = frames.len();
-                                frames.rotate_left(consumed);
-                                frames.truncate(num_frames - consumed);
-                            }
-                            Err(defmt_decoder::DecodeError::UnexpectedEof) => break,
-                            Err(defmt_decoder::DecodeError::Malformed) => {
-                                log::error!("failed to decode defmt data: {:x?}", frames);
-                                Err(defmt_decoder::DecodeError::Malformed)?;
-                            }
-                        }
-                    }
+                    probe_run::decode_loop(&mut frames, &table, &locs, &current_dir)?;
                 } else {
                     stdout.write_all(&read_buf[..num_bytes_read])?;
                     stdout.flush()?;
