@@ -256,8 +256,11 @@ fn notmain() -> anyhow::Result<i32> {
         }
     }
 
+    let vector_table = vector_table.ok_or_else(|| anyhow!("`.vector_table` section is missing"))?;
+    log::debug!("vector table: {:x?}", vector_table);
+
     // verify that initial stack pointer value is within the device's physical RAM
-    if let (Some(ram_region), Some(vector_table)) = (&ram_region, &vector_table) {
+    if let Some(ram_region) = &ram_region {
         if ram_region.range.contains(&vector_table.initial_sp) {
             bail!("initial stack pointer value is outside of device's physical RAM")
         }
@@ -276,8 +279,6 @@ fn notmain() -> anyhow::Result<i32> {
 
     let (rtt_addr, uses_heap, main) = get_rtt_heap_main_from(&elf)?;
 
-    let vector_table = vector_table.ok_or_else(|| anyhow!("`.vector_table` section is missing"))?;
-    log::debug!("vector table: {:x?}", vector_table);
     let sp_ram_region = target
         .memory_map
         .iter()
