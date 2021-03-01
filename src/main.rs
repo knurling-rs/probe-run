@@ -256,6 +256,13 @@ fn notmain() -> anyhow::Result<i32> {
         }
     }
 
+    // verify that initial stack pointer value is within the device's physical RAM
+    if let (Some(ram_region), Some(vector_table)) = (&ram_region, &vector_table) {
+        if ram_region.range.contains(&vector_table.initial_sp) {
+            bail!("initial stack pointer value is outside of device's physical RAM")
+        }
+    }
+
     let live_functions = elf
         .symbols()
         .filter_map(|sym| {
