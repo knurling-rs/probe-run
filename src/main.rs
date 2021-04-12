@@ -1,5 +1,6 @@
 mod registers;
 mod stacked;
+mod gdb_connection;
 
 use std::{
     borrow::Cow,
