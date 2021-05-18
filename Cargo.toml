@@ -35,3 +35,7 @@ insta = "1.7"
 os_pipe = "0.9"
 pretty_assertions = "0.7"
 rstest = "0.10"
+
+[patch.crates-io]
+probe-rs-rtt = { git = "https://github.com/probe-rs/probe-rs-rtt.git" }
+probe-rs = { git = "https://github.com/probe-rs/probe-rs.git"}
