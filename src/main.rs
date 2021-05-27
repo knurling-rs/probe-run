@@ -27,9 +27,9 @@ use object::{
     ObjectSegment, ObjectSymbol, SymbolSection,
 };
 use probe_rs::{
-    config::{registry, MemoryRegion},
+    config::{families, MemoryRegion, get_target_by_name},
     flashing::{self, Format},
-    DebugProbeInfo, MemoryInterface, Probe, Session,
+    DebugProbeInfo, MemoryInterface, Probe,
 };
 use probe_rs_rtt::{Rtt, ScanRegion, UpChannel};
 use signal_hook::consts::signal;
@@ -147,7 +147,7 @@ fn notmain() -> anyhow::Result<i32> {
     let bytes = fs::read(elf_path)?;
     let elf = ElfFile::parse(&bytes)?;
 
-    let target = probe_rs::config::registry::get_target_by_name(chip)?;
+    let target = get_target_by_name(chip)?;
 
     // find and report the RAM region
     let mut ram_region = None;
@@ -602,7 +602,7 @@ pub enum TopException {
 
 fn setup_logging_channel(
     rtt_addr: Option<u32>,
-    sess: Arc<Mutex<Session>>,
+    sess: Arc<Mutex<probe_rs::Session>>,
 ) -> anyhow::Result<Option<UpChannel>> {
     if let Some(rtt_addr_res) = rtt_addr {
         const NUM_RETRIES: usize = 10; // picked at random, increase if necessary
@@ -693,7 +693,7 @@ fn probes_filter(probes: &[DebugProbeInfo], selector: &ProbeFilter) -> Vec<Debug
 }
 
 fn print_chips() {
-    let registry = registry::families().expect("Could not retrieve chip family registry");
+    let registry = families().expect("Could not retrieve chip family registry");
     for chip_family in registry {
         println!("{}\n    Variants:", chip_family.name);
         for variant in chip_family.variants.iter() {
