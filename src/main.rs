@@ -27,7 +27,7 @@ use object::{
     ObjectSegment, ObjectSymbol, SymbolSection,
 };
 use probe_rs::{
-    config::{families, MemoryRegion, get_target_by_name},
+    config::{families, get_target_by_name, MemoryRegion},
     flashing::{self, Format},
     DebugProbeInfo, MemoryInterface, Probe,
 };
