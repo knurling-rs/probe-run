@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+- [#]
+- [#240] Add link to Knurling User Survey to `README`
+
+[#240]: https://github.com/knurling-rs/probe-run/pull/240
+
 (no changes)
 
 ## [v0.2.4] - 2021-06-17
