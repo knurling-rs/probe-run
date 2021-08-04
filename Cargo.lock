@@ -191,8 +191,6 @@ dependencies = [
 [[package]]
 name = "defmt-decoder"
 version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8cdd4e6b34a81db2aa4a493f5745007131fc85d10d2f0fba6c125ba7fd5138a"
 dependencies = [
  "ansi_term 0.12.1",
  "anyhow",
@@ -205,7 +203,7 @@ dependencies = [
  "log",
  "object 0.23.0",
  "ryu",
- "semver 1.0.3",
+ "semver 1.0.4",
  "serde",
  "serde_json",
 ]
@@ -213,8 +211,6 @@ dependencies = [
 [[package]]
 name = "defmt-parser"
 version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc621c2b4f5f5635e34021c38af2ccb0c1dae38ba11ebee25258de8bb1cee9fe"
 
 [[package]]
 name = "diff"
@@ -767,9 +763,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.3"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f3aac57ee7f3272d8395c6e4f502f434f0e289fcd62876f70daa008c20dcabe"
+checksum = "568a8e6258aa33c13358f81fd834adb854c6f7c9468520910a9b1e8fac068012"
 
 [[package]]
 name = "semver-parser"
