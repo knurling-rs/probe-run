@@ -8,7 +8,7 @@ use crate::dep;
 
 use super::{symbolicate::Frame, Settings};
 
-/// Pretty prints processed backtrace frames up to `backtrace_limit`
+/// Pretty prints processed backtrace frames up to `max_backtrace_len`
 pub(crate) fn backtrace(frames: &[Frame], settings: &Settings) {
     println!("{}", "stack backtrace:".dimmed());
 
@@ -59,10 +59,10 @@ pub(crate) fn backtrace(frames: &[Frame], settings: &Settings) {
 
                 frame_index += 1;
 
-                if frame_index >= settings.backtrace_limit {
+                if frame_index >= settings.max_backtrace_len {
                     log::warn!(
                         "maximum backtrace length of {} reached; cutting off the rest.",
-                        settings.backtrace_limit
+                        settings.max_backtrace_len
                     );
                     log::warn!("note: re-run with `--max-backtrace-len=<your maximum>` to extend this limit");
 

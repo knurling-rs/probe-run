@@ -108,14 +108,10 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         .map(|canary| canary.touched(&mut core, elf))
         .transpose()?
         .unwrap_or(false);
-
-    let panic_present = canary_touched || halted_due_to_signal;
-
-    let mut backtrace_settings = backtrace::Settings {
+    let backtrace_settings = backtrace::Settings {
         current_dir,
-        backtrace_limit: opts.backtrace_limit,
-        backtrace: (&opts.backtrace).into(),
-        panic_present,
+        max_backtrace_len: opts.max_backtrace_len,
+        force_backtrace: opts.force_backtrace || canary_touched || halted_due_to_signal,
         shorten_paths: opts.shorten_paths,
     };
 
@@ -123,7 +119,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         &mut core,
         elf,
         &target_info.active_ram_region,
-        &mut backtrace_settings,
+        &backtrace_settings,
     )?;
 
     // if general outcome was OK but the user ctrl-c'ed, that overrides our outcome
