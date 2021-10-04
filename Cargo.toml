@@ -32,7 +32,7 @@ signal-hook = "0.3"
 structopt = "0.3"
 
 [dependencies.defmt-decoder]
-branch = "main"
+branch = "minimize-deps"
 features = ['unstable']
 git = "https://github.com/knurling-rs/defmt"
 # version = "0.3.0" # uncomment when defmt-decoder 0.3.0 is released

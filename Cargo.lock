@@ -178,7 +178,7 @@ dependencies = [
 [[package]]
 name = "defmt-decoder"
 version = "0.2.2"
-source = "git+https://github.com/knurling-rs/defmt?branch=main#0009d50d09a7d00fdcb9982f7e6a608a71819123"
+source = "git+https://github.com/knurling-rs/defmt?branch=minimize-deps#47645286af15764d6b579ba852bd65a048734b32"
 dependencies = [
  "ansi_term 0.12.1",
  "anyhow",
@@ -186,10 +186,10 @@ dependencies = [
  "colored",
  "defmt-parser",
  "difference",
- "gimli 0.24.0",
+ "gimli 0.25.0",
  "leb128",
  "log",
- "object 0.25.3",
+ "object 0.26.2",
  "ryu",
  "serde",
  "serde_json",
@@ -198,7 +198,7 @@ dependencies = [
 [[package]]
 name = "defmt-parser"
 version = "0.2.2"
-source = "git+https://github.com/knurling-rs/defmt?branch=main#0009d50d09a7d00fdcb9982f7e6a608a71819123"
+source = "git+https://github.com/knurling-rs/defmt?branch=minimize-deps#47645286af15764d6b579ba852bd65a048734b32"
 
 [[package]]
 name = "diff"
