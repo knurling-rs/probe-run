@@ -99,5 +99,5 @@ stack backtrace:
         at [cortex-m-rt-0.6.14]/src/lib.rs:547:26
    9: 0x0000018a @ Reset
         at [cortex-m-rt-0.6.14]/src/lib.rs:550:13
-(HOST) ERROR the program panicked
+(HOST) ERROR the program hit a hard fault exception
 

@@ -105,6 +105,7 @@ fn truncate_output(probe_run_output: String) -> String {
 #[case::panic_verbose("panic-rzcobs --verbose", false)]
 #[case::unsuccessful_run_can_suppress_backtrace("panic-rzcobs --backtrace=never", false)]
 #[case::stack_overflow_can_suppress_backtrace("overflow-rzcobs --backtrace=never", false)]
+#[case::hard_fault_is_reported_as_such("udf", false)]
 #[serial]
 #[ignore = "requires the target hardware to be present"]
 fn snapshot_test(#[case] args: &str, #[case] success: bool) {

@@ -162,7 +162,11 @@ fn check_hard_fault(
         if overflowed_stack(sp, sp_ram_region) {
             return Some(Outcome::StackOverflow);
         } else {
-            return Some(Outcome::HardFault);
+            if vector_table.hard_fault == 5233 {
+                return Some(Outcome::Panic);
+            } else {
+                return Some(Outcome::HardFault);
+            }
         }
     }
     None

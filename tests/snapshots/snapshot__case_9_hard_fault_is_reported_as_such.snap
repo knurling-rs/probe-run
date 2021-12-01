@@ -6,7 +6,6 @@ expression: run_result.output
 (HOST) INFO  flashing program (2 pages / 8.00 KiB)
 (HOST) INFO  success!
 ────────────────────────────────────────────────────────────────────────────────
-ERROR panicked at 'explicit panic'
 ────────────────────────────────────────────────────────────────────────────────
 stack backtrace:
    0: HardFaultTrampoline
@@ -17,17 +16,10 @@ stack backtrace:
         at ./asm/lib.rs:49:17
    3: cortex_m::asm::udf
         at [cortex-m-0.7.3]/src/asm.rs:43:5
-   4: _defmt_panic
-        at /tmp/app/src/lib.rs:11:5
-   5: defmt::export::panic
-        at /home/japaric/.cargo/git/checkouts/defmt-52fbd7917982cfac/e021e7d/src/export.rs:266:14
-   6: panic::__cortex_m_rt_main
-        at /tmp/app/src/bin/panic.rs:8:5
-   7: main
-        at /tmp/app/src/bin/panic.rs:6:1
-   8: ResetTrampoline
-        at [cortex-m-rt-0.6.14]/src/lib.rs:547:26
-   9: Reset
-        at [cortex-m-rt-0.6.14]/src/lib.rs:550:13
+   4: udf::__cortex_m_rt_main
+        at /Users/brigitte/Code/ferrous/knurling/udf-app/src/bin/udf.rs:8:5
+   5: main
+        at /Users/brigitte/Code/ferrous/knurling/udf-app/src/bin/udf.rs:6:1
+   6: Reset
 (HOST) ERROR the program hit a hard fault exception
 
