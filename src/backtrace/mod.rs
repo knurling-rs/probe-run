@@ -89,6 +89,7 @@ pub(crate) fn print(
 /// Target program outcome
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Outcome {
+    Panic,
     HardFault,
     Ok,
     StackOverflow,
@@ -100,8 +101,9 @@ impl Outcome {
     pub(crate) fn log(&self) {
         match self {
             Outcome::StackOverflow => log::error!("the program has overflowed its stack"),
-            Outcome::HardFault => log::error!("the program panicked"),
+            Outcome::HardFault => log::error!("the program hit a hard fault exception"),
             Outcome::Ok => log::info!("device halted without error"),
+            Outcome::Panic => log::error!("the program panicked"),
             Outcome::CtrlC => log::info!("device halted by user"),
         }
     }
@@ -111,7 +113,7 @@ impl Outcome {
 impl From<Outcome> for i32 {
     fn from(outcome: Outcome) -> i32 {
         match outcome {
-            Outcome::HardFault | Outcome::StackOverflow => signal::SIGABRT,
+            Outcome::HardFault | Outcome::Panic | Outcome::StackOverflow => signal::SIGABRT,
             Outcome::CtrlC => signal::SIGINT,
             Outcome::Ok => 0,
         }

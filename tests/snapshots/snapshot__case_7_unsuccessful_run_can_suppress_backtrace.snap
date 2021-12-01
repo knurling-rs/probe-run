@@ -8,5 +8,5 @@ expression: run_result.output
 ────────────────────────────────────────────────────────────────────────────────
 ERROR panicked at 'explicit panic'
 ────────────────────────────────────────────────────────────────────────────────
-(HOST) ERROR the program panicked
+(HOST) ERROR the program hit a hard fault exception
 
