@@ -47,6 +47,14 @@ pub(crate) struct Opts {
     #[structopt(long)]
     pub(crate) connect_under_reset: bool,
 
+    /// Path to a trace file to write data to.
+    #[structopt(long, short)]
+    pub(crate) out_file: Option<String>,
+
+    /// The minimum log level of defmt messages that will be printed to stdout.
+    #[structopt(long, default_value = "debug")]
+    pub(crate) min_level: Level,
+
     /// Enable more verbose output.
     #[structopt(short, long, parse(from_occurrences))]
     pub(crate) verbose: u32,
@@ -80,9 +88,10 @@ pub(crate) fn handle_arguments() -> anyhow::Result<i32> {
     let opts: Opts = Opts::from_args();
     let verbose = opts.verbose;
 
+    let min_defmt_level = opts.min_level;
     defmt_decoder::log::init_logger(verbose >= 1, move |metadata| {
         if defmt_decoder::log::is_defmt_frame(metadata) {
-            true // We want to display *all* defmt frames.
+            metadata.level() <= min_defmt_level
         } else {
             // Log depending on how often the `--verbose` (`-v`) cli-param is supplied:
             //   * 0: log everything from probe-run, with level "info" or higher

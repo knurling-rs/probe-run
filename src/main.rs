@@ -21,7 +21,7 @@ use std::{
 
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
-use defmt_decoder::{DecodeError, Frame, Locations, StreamDecoder};
+use defmt_decoder::{DecodeError, Encoding, Frame, Locations, StreamDecoder};
 use probe_rs::{
     config::MemoryRegion,
     flashing::{self, Format},
@@ -200,7 +200,7 @@ fn start_program(sess: &mut Session, elf: &Elf) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Set rtt to blocking mode
+/// Set rtt to blocking mode for channel 0
 fn set_rtt_to_blocking(
     core: &mut Core,
     main_fn_address: u32,
@@ -241,16 +241,16 @@ fn extract_and_print_logs(
     let exit = Arc::new(AtomicBool::new(false));
     let sig_id = signal_hook::flag::register(signal::SIGINT, exit.clone())?;
 
-    let mut logging_channel = if let Some(address) = elf.rtt_buffer_address() {
-        Some(setup_logging_channel(address, core, memory_map)?)
+    let logging_channels = if let Some(address) = elf.rtt_buffer_address() {
+        setup_logging_channels(address, core, memory_map)?
     } else {
         eprintln!("RTT logs not available; blocking until the device halts..");
-        None
+        vec![]
     };
 
-    let use_defmt = logging_channel
-        .as_ref()
-        .map_or(false, |channel| channel.name() == Some("defmt"));
+    let use_defmt = logging_channels
+        .get(0)
+        .map_or(false, |c| c.name() == Some("defmt"));
 
     if use_defmt && opts.no_flash {
         bail!(
@@ -260,49 +260,41 @@ fn extract_and_print_logs(
         bail!("\"defmt\" RTT channel is in use, but the firmware binary contains no defmt data");
     }
 
-    let mut decoder_and_encoding = if use_defmt {
-        elf.defmt_table
-            .as_ref()
-            .map(|table| (table.new_stream_decoder(), table.encoding()))
+    let mut logging_channels = logging_channels
+        .into_iter()
+        .enumerate()
+        .map(|(i, rtt)| LogChannel::new(i, rtt, if use_defmt { &elf.defmt_table } else { &None }))
+        .collect::<Vec<_>>();
+
+    print_separator();
+
+    let mut out_file = if let Some(path) = &opts.out_file {
+        let file = fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .write(true)
+            .read(false)
+            .open(path)?;
+
+        Some(io::BufWriter::new(file))
     } else {
         None
     };
 
-    print_separator();
-
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
-    let mut read_buf = [0; 1024];
     let mut was_halted = false;
     while !exit.load(Ordering::Relaxed) {
-        if let Some(logging_channel) = &mut logging_channel {
-            let num_bytes_read = match logging_channel.read(core, &mut read_buf) {
-                Ok(n) => n,
-                Err(e) => {
-                    eprintln!("RTT error: {}", e);
-                    break;
-                }
-            };
-
-            if num_bytes_read != 0 {
-                match decoder_and_encoding.as_mut() {
-                    Some((stream_decoder, encoding)) => {
-                        stream_decoder.received(&read_buf[..num_bytes_read]);
-
-                        decode_and_print_defmt_logs(
-                            &mut **stream_decoder,
-                            elf.defmt_locations.as_ref(),
-                            current_dir,
-                            opts.shorten_paths,
-                            encoding.can_recover(),
-                        )?;
-                    }
-
-                    _ => {
-                        stdout.write_all(&read_buf[..num_bytes_read])?;
-                        stdout.flush()?;
-                    }
-                }
+        for logging_channel in logging_channels.iter_mut().rev() {
+            if !logging_channel.print_all(
+                core,
+                &mut stdout,
+                &mut out_file,
+                &elf.defmt_locations,
+                current_dir,
+                opts,
+            )? {
+                break;
             }
         }
 
@@ -315,6 +307,7 @@ fn extract_and_print_logs(
     }
 
     drop(stdout);
+    drop(out_file);
 
     signal_hook::low_level::unregister(sig_id);
     signal_hook::flag::register_conditional_default(signal::SIGINT, exit.clone())?;
@@ -331,7 +324,9 @@ fn extract_and_print_logs(
 }
 
 fn decode_and_print_defmt_logs(
+    number: usize,
     stream_decoder: &mut dyn StreamDecoder,
+    out_file: &mut Option<io::BufWriter<fs::File>>,
     locations: Option<&Locations>,
     current_dir: &Path,
     shorten_paths: bool,
@@ -339,7 +334,14 @@ fn decode_and_print_defmt_logs(
 ) -> anyhow::Result<()> {
     loop {
         match stream_decoder.decode() {
-            Ok(frame) => forward_to_logger(&frame, locations, current_dir, shorten_paths),
+            Ok(frame) => forward_to_logger(
+                number,
+                &frame,
+                locations,
+                current_dir,
+                shorten_paths,
+                out_file,
+            ),
             Err(DecodeError::UnexpectedEof) => break,
             Err(DecodeError::Malformed) => match encoding_can_recover {
                 // if recovery is impossible, abort
@@ -354,13 +356,35 @@ fn decode_and_print_defmt_logs(
 }
 
 fn forward_to_logger(
+    number: usize,
     frame: &Frame,
     locations: Option<&Locations>,
     current_dir: &Path,
     shorten_paths: bool,
+    out_file: &mut Option<io::BufWriter<fs::File>>,
 ) {
     let (file, line, mod_path) = location_info(frame, locations, current_dir, shorten_paths);
     defmt_decoder::log::log_defmt(frame, file.as_deref(), line, mod_path.as_deref());
+
+    if let Some(out_file) = out_file {
+        let timestamp = frame
+            .display_timestamp()
+            .map(|display| display.to_string())
+            .unwrap_or_default();
+
+        writeln!(
+            out_file,
+            "{}|{}|{}|{}:{}|{}|{}",
+            timestamp,
+            number,
+            frame.level().map_or("UNKOWN", |l| l.as_str()),
+            file.as_deref().unwrap_or_default(),
+            line.map(|l| l.to_string()).unwrap_or_default(),
+            mod_path.unwrap_or_default(),
+            frame.display_message()
+        )
+        .unwrap();
+    }
 }
 
 fn location_info(
@@ -370,7 +394,7 @@ fn location_info(
     shorten_paths: bool,
 ) -> (Option<String>, Option<u32>, Option<String>) {
     locations
-        .map(|locations| &locations[&frame.index()])
+        .and_then(|locations| locations.get(&frame.index()))
         .map(|location| {
             let path = if let Ok(relpath) = location.file.strip_prefix(&current_dir) {
                 relpath.display().to_string()
@@ -390,11 +414,11 @@ fn location_info(
         .unwrap_or((None, None, None))
 }
 
-fn setup_logging_channel(
+fn setup_logging_channels(
     rtt_buffer_address: u32,
     core: &mut probe_rs::Core,
     memory_map: &[MemoryRegion],
-) -> anyhow::Result<UpChannel> {
+) -> anyhow::Result<Vec<UpChannel>> {
     const NUM_RETRIES: usize = 10; // picked at random, increase if necessary
 
     let scan_region = ScanRegion::Exact(rtt_buffer_address);
@@ -403,12 +427,13 @@ fn setup_logging_channel(
             Ok(mut rtt) => {
                 log::debug!("Successfully attached RTT");
 
-                let channel = rtt
-                    .up_channels()
-                    .take(0)
-                    .ok_or_else(|| anyhow!("RTT up channel 0 not found"))?;
+                let channels = rtt.up_channels().drain().collect::<Vec<_>>();
 
-                return Ok(channel);
+                if channels.is_empty() {
+                    bail!("RTT up channel 0 not found");
+                }
+
+                return Ok(channels);
             }
 
             Err(probe_rs_rtt::Error::ControlBlockNotFound) => {
@@ -428,4 +453,77 @@ fn setup_logging_channel(
 /// Print a line to separate different execution stages.
 fn print_separator() {
     println!("{}", "─".repeat(80).dimmed());
+}
+
+struct LogChannel<'a> {
+    number: usize,
+    rtt: UpChannel,
+    buf: [u8; 1024],
+    decoder: Option<(Box<dyn StreamDecoder + 'a>, Encoding)>,
+}
+
+impl<'a> LogChannel<'a> {
+    pub fn new(number: usize, rtt: UpChannel, table: &'a Option<defmt_decoder::Table>) -> Self {
+        Self {
+            number,
+            rtt,
+            buf: [0u8; 1024],
+            decoder: table
+                .as_ref()
+                .map(|t| (t.new_stream_decoder(), t.encoding())),
+        }
+    }
+
+    pub fn print_all(
+        &mut self,
+        core: &mut probe_rs::Core,
+        stdout: &mut io::StdoutLock,
+        out_file: &mut Option<io::BufWriter<fs::File>>,
+        locations: &Option<std::collections::BTreeMap<u64, defmt_decoder::Location>>,
+        current_dir: &Path,
+        opts: &cli::Opts,
+    ) -> anyhow::Result<bool> {
+        let Self {
+            number,
+            rtt,
+            buf,
+            decoder,
+        } = self;
+
+        let num_bytes_read = match rtt.read(core, buf) {
+            Ok(n) => n,
+            Err(e) => {
+                eprintln!("RTT error: {}", e);
+                return Ok(false);
+            }
+        };
+
+        if num_bytes_read != 0 {
+            match decoder.as_mut() {
+                Some((stream_decoder, encoding)) => {
+                    stream_decoder.received(&buf[..num_bytes_read]);
+
+                    decode_and_print_defmt_logs(
+                        *number,
+                        &mut **stream_decoder,
+                        out_file,
+                        locations.as_ref(),
+                        current_dir,
+                        opts.shorten_paths,
+                        encoding.can_recover(),
+                    )?;
+                }
+
+                _ => {
+                    stdout.write_all(&buf[..num_bytes_read])?;
+                    stdout.flush()?;
+                    if let Some(out_file) = out_file {
+                        out_file.write_all(&buf[..num_bytes_read])?;
+                    }
+                }
+            }
+        }
+
+        Ok(true)
+    }
 }
