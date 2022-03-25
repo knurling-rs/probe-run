@@ -14,8 +14,12 @@ use std::{
     io::{self, Write as _},
     path::Path,
     process,
-    sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
+    thread,
     time::Duration,
 };
 
@@ -174,9 +178,35 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         outcome = Outcome::CtrlC
     }
 
-    core.reset_and_halt(TIMEOUT)?;
+    if opts.gdb && outcome == Outcome::HardFault {
+        outcome.log();
 
-    outcome.log();
+        eprintln!(
+            "spawned GDB server. waiting for connection on TCP port 1337. input Ctrl-C to exit"
+        );
+
+        drop(core);
+
+        let exit = Arc::new(AtomicBool::new(false));
+        signal_hook::flag::register(signal::SIGINT, Arc::clone(&exit))?;
+
+        // wrap in a Mutex to satisfy the API. the Mutex won't be contended
+        let sess = Mutex::new(sess);
+
+        thread::spawn(move || {
+            let _ = probe_rs_gdb_server::run(None::<&str>, &sess);
+        });
+
+        while !exit.load(Ordering::Relaxed) {
+            thread::sleep(Duration::from_millis(100));
+        }
+
+        // FIXME there's no clean way to terminate the `run` thread. in the current implementation,
+        // the process will `exit` (see `main` function) and `Session`'s destructor will not run
+    } else {
+        core.reset_and_halt(TIMEOUT)?;
+        outcome.log();
+    }
 
     Ok(outcome.into())
 }
