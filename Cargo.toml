@@ -28,6 +28,7 @@ probe-rs = "0.12"
 probe-rs-rtt = "0.12"
 signal-hook = "0.3"
 structopt = "0.3"
+terminfo = "0.7"
 
 [dev-dependencies]
 dirs = "4"

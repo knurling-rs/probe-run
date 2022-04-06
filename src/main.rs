@@ -37,6 +37,18 @@ use crate::{backtrace::Outcome, canary::Canary, elf::Elf, target_info::TargetInf
 const TIMEOUT: Duration = Duration::from_secs(1);
 
 fn main() -> anyhow::Result<()> {
+    // colored 2.0.0 ignores the capabilities of the terminal, so we
+    // disable colorization here for terminals that don't support it
+    // until https://github.com/mackwic/colored/issues/108 is fixed
+    if let Ok(db) = terminfo::Database::from_env() {
+        let colorize = match db.get::<terminfo::capability::MaxColors>() {
+            Some(mc) => Into::<i32>::into(mc) > 2,
+            None => false,
+        };
+        if !colorize {
+            colored::control::set_override(false)
+        }
+    }
     #[allow(clippy::redundant_closure)]
     cli::handle_arguments().map(|code| process::exit(code))
 }
