@@ -78,6 +78,9 @@ pub(crate) struct Opts {
     #[structopt(long)]
     pub(crate) json: bool,
 
+    #[structopt(long)]
+    pub(crate) gdb: bool,
+
     /// Arguments passed after the ELF file path are discarded
     #[structopt(name = "REST")]
     _rest: Vec<String>,
