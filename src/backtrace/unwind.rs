@@ -154,23 +154,20 @@ fn check_hard_fault(
     sp: u32,
     sp_ram_region: &Option<RamRegion>,
 ) -> Option<Outcome> {
-    if cortexm::is_hard_fault(pc, vector_table) {
+    cortexm::is_hard_fault(pc, vector_table).then(|| {
         assert!(
             output.raw_frames.is_empty(),
             "when present HardFault handler must be the first frame we unwind but wasn't"
         );
 
         if overflowed_stack(sp, sp_ram_region) {
-            return Some(Outcome::StackOverflow);
+            Outcome::StackOverflow
+        } else if vector_table.hard_fault == 5233 {
+            Outcome::Panic
         } else {
-            if vector_table.hard_fault == 5233 {
-                return Some(Outcome::Panic);
-            } else {
-                return Some(Outcome::HardFault);
-            }
+            Outcome::HardFault
         }
-    }
-    None
+    })
 }
 
 #[derive(Debug)]
