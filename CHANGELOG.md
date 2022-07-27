@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 - [#317] Clarify "can't determine stack overflow" error message
 - [#314] Clarify documentation in README
 - [#293] Update snapshot tests to new TRACE output
+- [#290] Differentiate between panic and other hard faults
 
 [#334]: https://github.com/knurling-rs/probe-run/pull/334
 [#333]: https://github.com/knurling-rs/probe-run/pull/333
@@ -33,6 +34,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 [#317]: https://github.com/knurling-rs/probe-run/pull/317
 [#314]: https://github.com/knurling-rs/probe-run/pull/314
 [#293]: https://github.com/knurling-rs/probe-run/pull/293
+[#290]: https://github.com/knurling-rs/probe-run/pull/290
 
 ## [v0.3.3] - 2022-03-14
 
