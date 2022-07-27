@@ -64,6 +64,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 - [#314] Clarify documentation in README
 - [#305] Add option to disable double buffering while loading firmware
 - [#293] Update snapshot tests to new TRACE output
+- [#290] Differentiate between panic and other hard faults
 
 [#342]: https://github.com/knurling-rs/probe-run/pull/342
 [#339]: https://github.com/knurling-rs/probe-run/pull/339
@@ -84,6 +85,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 [#314]: https://github.com/knurling-rs/probe-run/pull/314
 [#305]: https://github.com/knurling-rs/probe-run/pull/305
 [#293]: https://github.com/knurling-rs/probe-run/pull/293
+[#290]: https://github.com/knurling-rs/probe-run/pull/290
 
 ## [v0.3.3] - 2022-03-14
 
