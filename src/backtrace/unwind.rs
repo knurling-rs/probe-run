@@ -87,10 +87,6 @@ pub fn target(core: &mut Core, elf: &Elf, active_ram_region: &Option<RamRegion>)
 
         log::debug!("LR={lr:#010X} PC={pc:#010X}");
 
-        if lr == registers::LR_END {
-            break;
-        }
-
         // Link Register contains an EXC_RETURN value. This deliberately also includes
         // invalid combinations of final bits 0-4 to prevent futile backtrace re-generation attempts
         let exception_entry = lr >= cortexm::EXC_RETURN_MARKER;
