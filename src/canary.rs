@@ -44,9 +44,10 @@ const CANARY_U32: u32 = u32::from_le_bytes([CANARY_U8, CANARY_U8, CANARY_U8, CAN
 /// overflow.
 #[derive(Clone, Copy)]
 pub struct Canary {
-    address: u32,
-    size: u32,
+    addr: u32,
     data_below_stack: bool,
+    size: u32,
+    size_kb: f64,
 }
 
 impl Canary {
@@ -55,60 +56,66 @@ impl Canary {
     /// Assumes that the target was reset-halted.
     pub fn install(
         core: &mut Core,
-        target_info: &TargetInfo,
         elf: &Elf,
-    ) -> Result<Option<Self>, anyhow::Error> {
-        let canary = match Self::prepare(&target_info.stack_info, elf) {
+        target_info: &TargetInfo,
+    ) -> anyhow::Result<Option<Self>> {
+        let canary = match Self::prepare(elf, &target_info.stack_info) {
             Some(canary) => canary,
             None => return Ok(None),
         };
 
-        let size_kb = canary.size_kb();
-
-        // Painting 100KB or more takes a few seconds, so provide user feedback.
-        log::info!("painting {size_kb:.2} KiB of RAM for stack usage estimation");
-
         let start = Instant::now();
-        paint_subroutine::execute(core, canary.address, canary.size)?;
+
+        // paint stack
+        paint_subroutine::execute(core, canary.addr, canary.size)?;
+
         let seconds = start.elapsed().as_secs_f64();
-        log::trace!(
-            "setting up canary took {seconds:.3}s ({:.2} KiB/s)",
-            size_kb / seconds
-        );
+        canary.log_time("painting", seconds);
 
         Ok(Some(canary))
     }
 
-    /// Detect if the stack canary was touched.
-    pub fn touched(self, core: &mut Core, elf: &Elf) -> anyhow::Result<bool> {
-        let size_kb = self.size_kb();
-        log::info!("reading {size_kb:.2} KiB of RAM for stack usage estimation",);
+    /// Measure the stack usage.
+    ///
+    /// Returns `true` if a stack overflow is likely.
+    pub fn measure(self, core: &mut Core, elf: &Elf) -> anyhow::Result<bool> {
         let start = Instant::now();
 
-        let touched_address = measure_subroutine::execute(core, self.address, self.size)?;
+        // measure stack usage
+        let touched_address = measure_subroutine::execute(core, self.addr, self.size)?;
 
         let seconds = start.elapsed().as_secs_f64();
-        log::trace!(
-            "reading canary took {seconds:.3}s ({:.2} KiB/s)",
-            size_kb / seconds
-        );
+        self.log_time("reading", seconds);
 
-        let min_stack_usage = touched_address.map(|touched_address| {
-            log::debug!("canary was touched at {touched_address:#010X}");
-            elf.vector_table.initial_stack_pointer - touched_address
-        });
+        let min_stack_usage = match touched_address {
+            Some(touched_address) => {
+                log::debug!("stack was touched at {touched_address:#010X}");
+                elf.vector_table.initial_stack_pointer - touched_address
+            }
+            None => {
+                log::warn!("stack was not used at all");
+                0
+            }
+        };
 
-        let min_stack_usage = min_stack_usage.unwrap_or(0);
         let used_kb = min_stack_usage as f64 / 1024.0;
-        let pct = used_kb / size_kb * 100.0;
-        log::info!(
-            "program has used at least {used_kb:.2}/{size_kb:.2} KiB ({pct:.1}%) of stack space"
+        let pct = used_kb / self.size_kb * 100.0;
+        let msg = format!(
+            "program has used at least {used_kb:.2}/{:.2} KiB ({pct:.1}%) of stack space",
+            self.size_kb
         );
 
-        if pct > 90.0 && self.data_below_stack {
-            log::warn!("data segments might be corrupted due to stack overflow");
+        // stack touched?
+        //
+        // We consider >90% stack usage a potential stack overflow
+        if pct > 90.0 {
+            log::warn!("{}", msg);
+            if self.data_below_stack {
+                log::warn!("data segments might be corrupted due to stack overflow");
+            }
             Ok(true)
         } else {
+            log::info!("{}", msg);
             Ok(false)
         }
     }
@@ -116,7 +123,7 @@ impl Canary {
     /// Prepare, but not place the canary.
     ///
     /// If this succeeds, we have all the information we need in order to place the canary.
-    fn prepare(stack_info: &Option<StackInfo>, elf: &Elf) -> Option<Self> {
+    fn prepare(elf: &Elf, stack_info: &Option<StackInfo>) -> Option<Self> {
         let stack_info = match stack_info {
             Some(stack_info) => stack_info,
             None => {
@@ -130,24 +137,28 @@ impl Canary {
             return None;
         }
 
-        let stack_start = *stack_info.range.start();
-        let size = *stack_info.range.end() - stack_start;
+        let stack_addr = *stack_info.range.start();
+        let stack_size = *stack_info.range.end() - stack_addr;
 
         log::debug!(
-            "{size} bytes of stack available ({:#010X} ..= {:#010X})",
-            stack_info.range.start(),
+            "{stack_size} bytes of stack available ({stack_addr:#010X} ..= {:#010X})",
             stack_info.range.end(),
         );
 
         Some(Canary {
-            address: stack_start,
-            size,
+            addr: stack_addr,
             data_below_stack: stack_info.data_below_stack,
+            size: stack_size,
+            size_kb: stack_size as f64 / 1024.0,
         })
     }
 
-    fn size_kb(self) -> f64 {
-        self.size as f64 / 1024.0
+    fn log_time(&self, action: &str, seconds: f64) {
+        log::debug!(
+            "{action} {:.2} KiB of RAM took {seconds:.3}s ({:.2} KiB/s)",
+            self.size_kb,
+            self.size_kb / seconds
+        )
     }
 }
 
@@ -315,9 +326,8 @@ mod measure_subroutine {
         assert_subroutine!(low_addr, stack_size, self::SUBROUTINE.len() as u32);
 
         // use probe to search through the memory the subroutine will be written to
-        match self::search_with_probe(core, low_addr)? {
-            addr @ Some(_) => return Ok(addr), // if we find a touched value, return early ...
-            None => {}                         // ... otherwise we continue
+        if let Some(addr) = self::search_with_probe(core, low_addr)? {
+            return Ok(Some(addr)); // return early, if we find a touched value
         }
 
         super::execute_subroutine(core, low_addr, stack_size, self::SUBROUTINE)?;
@@ -352,7 +362,7 @@ mod measure_subroutine {
             .to_le_bytes()
             .into_iter()
             .position(|b| b != CANARY_U8)
-            .unwrap();
+            .expect("some byte has to be touched, if `word_addr != 0`");
 
         Ok(Some(word_addr + offset as u32))
     }

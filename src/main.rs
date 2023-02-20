@@ -71,7 +71,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     let target_info = TargetInfo::new(elf, memory_map, probe_target, stack_start)?;
 
     // install stack canary
-    let canary = Canary::install(core, &target_info, elf)?;
+    let canary = Canary::install(core, elf, &target_info)?;
     if canary.is_none() {
         log::info!("stack measurement was not set up");
     }
@@ -84,7 +84,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
 
     // analyze stack canary
     let stack_overflow = canary
-        .map(|canary| canary.touched(core, elf))
+        .map(|canary| canary.measure(core, elf))
         .transpose()?
         .unwrap_or(false);
 
