@@ -2,7 +2,11 @@ use std::time::Instant;
 
 use probe_rs::{Core, MemoryInterface, RegisterId};
 
-use crate::{registers::PC, Elf, TargetInfo, TIMEOUT};
+use crate::{
+    registers::PC,
+    target_info::{StackInfo, TargetInfo},
+    Elf, TIMEOUT,
+};
 
 /// Canary value
 const CANARY_U8: u8 = 0xAA;
@@ -45,6 +49,7 @@ pub struct Canary {
     stack_available: u32,
     data_below_stack: bool,
     measure_stack: bool,
+    size_kb: f64,
 }
 
 impl Canary {
@@ -57,55 +62,27 @@ impl Canary {
         elf: &Elf,
         measure_stack: bool,
     ) -> Result<Option<Self>, anyhow::Error> {
-        let stack_info = match &target_info.stack_info {
-            Some(stack_info) => stack_info,
-            None => {
-                log::debug!("couldn't find valid stack range, not placing stack canary");
-                return Ok(None);
-            }
+        let canary = match Self::prepare(&target_info.stack_info, elf, measure_stack) {
+            Some(canary) => canary,
+            None => return Ok(None),
         };
 
-        if elf.program_uses_heap() {
-            log::debug!("heap in use, not placing stack canary");
-            return Ok(None);
-        }
-
-        let stack_start = *stack_info.range.start();
-        let stack_available = *stack_info.range.end() - stack_start;
-
-        let size = if measure_stack {
-            // When measuring stack consumption, we have to color the whole stack.
-            stack_available as usize
-        } else {
-            round_up(stack_available / 10, 4) as usize
-        };
-
-        log::debug!(
-            "{stack_available} bytes of stack available ({:#010X} ..= {:#010X}), using {size} byte canary",
-            stack_info.range.start(),
-            stack_info.range.end(),
-        );
-
-        let size_kb = size as f64 / 1024.0;
         if measure_stack {
             // Painting 100KB or more takes a few seconds, so provide user feedback.
-            log::info!("painting {size_kb:.2} KiB of RAM for stack usage estimation");
+            log::info!(
+                "painting {:.2} KiB of RAM for stack usage estimation",
+                canary.size_kb
+            );
         }
         let start = Instant::now();
-        paint_subroutine::execute(core, stack_start, size as u32)?;
+        paint_subroutine::execute(core, canary.address, canary.size as u32)?;
         let seconds = start.elapsed().as_secs_f64();
         log::trace!(
             "setting up canary took {seconds:.3}s ({:.2} KiB/s)",
-            size_kb / seconds
+            canary.size_kb / seconds
         );
 
-        Ok(Some(Canary {
-            address: stack_start,
-            size,
-            stack_available,
-            data_below_stack: stack_info.data_below_stack,
-            measure_stack,
-        }))
+        Ok(Some(canary))
     }
 
     /// Detect if the stack canary was touched.
@@ -163,6 +140,54 @@ impl Canary {
                 }
             }
         }
+    }
+
+    /// Prepare, but not place the canary.
+    ///
+    /// If this succeeds, we have all the information we need in order to place the canary.
+    fn prepare(stack_info: &Option<StackInfo>, elf: &Elf, measure_stack: bool) -> Option<Self> {
+        let stack_info = match stack_info {
+            Some(stack_info) => stack_info,
+            None => {
+                log::debug!("couldn't find valid stack range, not placing stack canary");
+                return None;
+            }
+        };
+
+        if elf.program_uses_heap() {
+            log::debug!("heap in use, not placing stack canary");
+            return None;
+        }
+
+        let stack_start = *stack_info.range.start();
+        let stack_available = *stack_info.range.end() - stack_start;
+
+        let size = if measure_stack {
+            // When measuring stack consumption, we have to color the whole stack.
+            stack_available as usize
+        } else {
+            // We consider >90% stack usage a potential stack overflow, but don't go beyond 1 kb
+            // since filling a lot of RAM is slow (and 1 kb should be "good enough" for what we're
+            // doing).
+            round_up(1024.min(stack_available / 10), 4) as usize
+        };
+
+        log::debug!(
+            "{stack_available} bytes of stack available ({:#010X} ..= {:#010X}), using {size} byte canary",
+            stack_info.range.start(),
+            stack_info.range.end(),
+        );
+
+        let size_kb = size as f64 / 1024.0;
+
+        Some(Canary {
+            address: stack_start,
+            size,
+            stack_available,
+            data_below_stack: stack_info.data_below_stack,
+            measure_stack,
+            size_kb,
+        })
     }
 }
 
