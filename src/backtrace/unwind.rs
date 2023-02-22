@@ -27,13 +27,21 @@ fn missing_debug_info(pc: u32) -> String {
 ///
 /// This returns as much info as could be collected, even if the collection is interrupted by an error.
 /// If an error occurred during processing, it is stored in `Output::processing_error`.
-pub fn target(core: &mut Core, elf: &Elf, active_ram_region: &Option<RamRegion>) -> Output {
+pub fn target(
+    core: &mut Core,
+    elf: &Elf,
+    active_ram_region: &Option<RamRegion>,
+    stack_start: u32,
+) -> Output {
     let mut output = Output {
         corrupted: true,
         outcome: Outcome::Ok,
         raw_frames: vec![],
         processing_error: None,
     };
+
+    dbg!(stack_start, active_ram_region);
+    println!("{:#x}", stack_start);
 
     /// Returns all info collected until the error occurred and puts the error into `processing_error`
     macro_rules! unwrap_or_return_output {
@@ -77,7 +85,7 @@ pub fn target(core: &mut Core, elf: &Elf, active_ram_region: &Option<RamRegion>)
 
         log::trace!("uwt row for pc {pc:#010x}: {uwt_row:?}");
 
-        let cfa_changed = unwrap_or_return_output!(registers.update_cfa(uwt_row.cfa()));
+        unwrap_or_return_output!(registers.update_cfa(uwt_row.cfa()));
 
         for (reg, rule) in uwt_row.registers() {
             unwrap_or_return_output!(registers.update(reg, rule));
@@ -90,20 +98,6 @@ pub fn target(core: &mut Core, elf: &Elf, active_ram_region: &Option<RamRegion>)
         // Link Register contains an EXC_RETURN value. This deliberately also includes
         // invalid combinations of final bits 0-4 to prevent futile backtrace re-generation attempts
         let exception_entry = lr >= cortexm::EXC_RETURN_MARKER;
-
-        let program_counter_changed = !cortexm::subroutine_eq(lr, pc);
-
-        match !cfa_changed && !program_counter_changed {
-            // If the frame didn't move, and the program counter didn't change, bail out
-            // (otherwise we might print the same frame over and over).
-            true => {
-                // If we do not end up in the reset function the stack is corrupted
-                output.corrupted = !elf.reset_fn_range().contains(&pc);
-
-                break;
-            }
-            false => output.corrupted = false,
-        }
 
         if exception_entry {
             output.raw_frames.push(RawFrame::Exception);
@@ -139,6 +133,19 @@ pub fn target(core: &mut Core, elf: &Elf, active_ram_region: &Option<RamRegion>)
             output.processing_error = Some(anyhow!(
                 "bug? LR ({lr:#010x}) didn't have the Thumb bit set",
             ));
+            return output;
+        }
+
+        // check if we want to end unwinding
+        let advanced_sp = registers.get(registers::SP).unwrap();
+
+        // if the stack pointer is at the start of the stack, exit gracefully
+        if advanced_sp == stack_start {
+            output.corrupted = false;
+            return output;
+        // if the stack pointer is at the start of the stack, the stack is corrupt
+        } else if advanced_sp > stack_start {
+            output.corrupted = true;
             return output;
         }
     }

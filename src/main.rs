@@ -32,7 +32,7 @@ use probe_rs::{
 };
 use signal_hook::consts::signal;
 
-use crate::{backtrace::Outcome, canary::Canary, elf::Elf, target_info::TargetInfo};
+use crate::{backtrace::Outcome, canary::Canary, elf::Elf, registers::SP, target_info::TargetInfo};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -108,6 +108,14 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         log::info!("success!");
     }
 
+    let stack_start = {
+        let mut core = sess.core(0)?;
+        core.reset_and_halt(Duration::from_secs(5))?;
+        let stack_start = core.read_core_reg::<u32>(SP)?;
+        core.reset()?;
+        stack_start
+    };
+
     let canary = Canary::install(&mut sess, &target_info, elf, opts.measure_stack)?;
     if opts.measure_stack && canary.is_none() {
         bail!("failed to set up stack measurement");
@@ -145,6 +153,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         elf,
         &target_info.active_ram_region,
         &mut backtrace_settings,
+        stack_start,
     )?;
 
     // if general outcome was OK but the user ctrl-c'ed, that overrides our outcome
