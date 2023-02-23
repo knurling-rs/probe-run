@@ -182,7 +182,6 @@ fn extract_symbols(elf: &ObjectFile) -> anyhow::Result<Symbols> {
         };
 
         let address = symbol.address().try_into().expect("expected 32-bit ELF");
-
         match name {
             "main" => main_fn_address = Some(cortexm::clear_thumb_bit(address)),
             "_SEGGER_RTT" => rtt_buffer_address = Some(address),
@@ -194,11 +193,12 @@ fn extract_symbols(elf: &ObjectFile) -> anyhow::Result<Symbols> {
         }
     }
 
-    let main_fn_address = main_fn_address.ok_or(anyhow!("`main` symbol not found"))?;
+    let main_function_address =
+        main_fn_address.ok_or_else(|| anyhow!("`main` symbol not found"))?;
 
     Ok(Symbols {
         rtt_buffer_address,
         program_uses_heap,
-        main_fn_address,
+        main_fn_address: main_function_address,
     })
 }
