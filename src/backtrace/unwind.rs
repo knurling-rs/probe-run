@@ -1,5 +1,7 @@
 //! unwind target's program
 
+use std::cmp::Ordering;
+
 use anyhow::{anyhow, Context as _};
 use gimli::{
     BaseAddresses, CieOrFde, DebugFrame, FrameDescriptionEntry, Reader, UnwindContext,
@@ -39,9 +41,6 @@ pub fn target(
         raw_frames: vec![],
         processing_error: None,
     };
-
-    dbg!(stack_start, active_ram_region);
-    println!("{:#x}", stack_start);
 
     /// Returns all info collected until the error occurred and puts the error into `processing_error`
     macro_rules! unwrap_or_return_output {
@@ -133,20 +132,24 @@ pub fn target(
             output.processing_error = Some(anyhow!(
                 "bug? LR ({lr:#010x}) didn't have the Thumb bit set",
             ));
-            return output;
+            break;
         }
 
         // check if we want to end unwinding
         let advanced_sp = registers.get(registers::SP).unwrap();
-
-        // if the stack pointer is at the start of the stack, exit gracefully
-        if advanced_sp == stack_start {
-            output.corrupted = false;
-            return output;
-        // if the stack pointer is at the start of the stack, the stack is corrupt
-        } else if advanced_sp > stack_start {
-            output.corrupted = true;
-            return output;
+        match advanced_sp.cmp(&stack_start) {
+            // if the SP is at the start of the stack, unwinding is completed
+            Ordering::Equal => {
+                output.corrupted = false;
+                break;
+            }
+            // if the SP is above the start of the stack, the stack is corrupt
+            Ordering::Greater => {
+                output.corrupted = true;
+                break;
+            }
+            // if the SP is below the start of the stack, continue unwinding
+            Ordering::Less => continue,
         }
     }
 
