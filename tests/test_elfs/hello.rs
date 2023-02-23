@@ -5,6 +5,7 @@ use app as _;
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    defmt::info!("Hello, world!");
+    defmt::println!("Hello, world!");
+
     app::exit()
 }

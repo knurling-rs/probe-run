@@ -1,5 +1,6 @@
 ---
 source: tests/snapshot.rs
+assertion_line: 113
 expression: run_result.output
 
 ---
@@ -12,22 +13,19 @@ stack backtrace:
    0: HardFaultTrampoline
       <exception entry>
    1: lib::inline::__udf
-        at ./asm/inline.rs:172:5
+        at ./asm/inline.rs:181:5
    2: __udf
-        at ./asm/lib.rs:49:17
+        at ./asm/lib.rs:51:17
    3: cortex_m::asm::udf
-        at [cortex-m-0.7.3]/src/asm.rs:43:5
+        at [cortex-m-0.7.7]/src/asm.rs:43:5
    4: _defmt_panic
-        at /tmp/app/src/lib.rs:11:5
+        at /tmp/app/src/lib.rs:12:5
    5: defmt::export::panic
-        at /home/japaric/.cargo/git/checkouts/defmt-52fbd7917982cfac/e021e7d/src/export.rs:266:14
+        at [defmt-0.3.2]/src/export/mod.rs:133:14
    6: panic::__cortex_m_rt_main
         at /tmp/app/src/bin/panic.rs:8:5
    7: main
         at /tmp/app/src/bin/panic.rs:6:1
-   8: ResetTrampoline
-        at [cortex-m-rt-0.6.14]/src/lib.rs:547:26
-   9: Reset
-        at [cortex-m-rt-0.6.14]/src/lib.rs:550:13
+   8: Reset
 (HOST) ERROR the program panicked
 
