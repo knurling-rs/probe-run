@@ -1,7 +1,5 @@
 //! unwind target's program
 
-use std::cmp::Ordering;
-
 use anyhow::{anyhow, Context as _};
 use gimli::{
     BaseAddresses, CieOrFde, DebugFrame, FrameDescriptionEntry, Reader, UnwindContext,
@@ -84,7 +82,7 @@ pub fn target(
 
         log::trace!("uwt row for pc {pc:#010x}: {uwt_row:?}");
 
-        unwrap_or_return_output!(registers.update_cfa(uwt_row.cfa()));
+        let cfa_changed = unwrap_or_return_output!(registers.update_cfa(uwt_row.cfa()));
 
         for (reg, rule) in uwt_row.registers() {
             unwrap_or_return_output!(registers.update(reg, rule));
@@ -93,6 +91,19 @@ pub fn target(
         let lr = unwrap_or_return_output!(registers.get(registers::LR));
 
         log::debug!("LR={lr:#010X} PC={pc:#010X}");
+
+        let program_counter_changed = !cortexm::subroutine_eq(lr, pc);
+
+        match !cfa_changed && !program_counter_changed {
+            // If the frame didn't move, and the program counter didn't change, bail out
+            // (otherwise we might print the same frame over and over).
+            true => {
+                // If we do not end up in the reset function the stack is corrupted
+                output.corrupted = !elf.reset_fn_range().contains(&pc);
+                break;
+            }
+            false => output.corrupted = false,
+        }
 
         // Link Register contains an EXC_RETURN value. This deliberately also includes
         // invalid combinations of final bits 0-4 to prevent futile backtrace re-generation attempts
@@ -135,21 +146,11 @@ pub fn target(
             break;
         }
 
-        // check if we want to end unwinding
+        // if the SP is above the start of the stack, the stack is corrupt
         let advanced_sp = registers.get(registers::SP).unwrap();
-        match advanced_sp.cmp(&stack_start) {
-            // if the SP is at the start of the stack, unwinding is completed
-            Ordering::Equal => {
-                output.corrupted = false;
-                break;
-            }
-            // if the SP is above the start of the stack, the stack is corrupt
-            Ordering::Greater => {
-                output.corrupted = true;
-                break;
-            }
-            // if the SP is below the start of the stack, continue unwinding
-            Ordering::Less => continue,
+        if advanced_sp > stack_start {
+            output.corrupted = true;
+            break;
         }
     }
 

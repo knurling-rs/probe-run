@@ -1,4 +1,10 @@
-use std::{collections::HashSet, convert::TryInto, env, ops::Deref, path::Path};
+use std::{
+    collections::HashSet,
+    convert::TryInto,
+    env,
+    ops::{Deref, Range},
+    path::Path,
+};
 
 use anyhow::{anyhow, bail};
 use defmt_decoder::{Locations, Table};
@@ -56,6 +62,10 @@ impl<'file> Elf<'file> {
 
     pub fn rtt_buffer_address(&self) -> Option<u32> {
         self.symbols.rtt_buffer_address
+    }
+
+    pub fn reset_fn_range(&self) -> Range<u32> {
+        self.symbols.reset_fn_range.clone()
     }
 }
 
@@ -168,12 +178,14 @@ struct Symbols {
     rtt_buffer_address: Option<u32>,
     program_uses_heap: bool,
     main_fn_address: u32,
+    reset_fn_range: Range<u32>,
 }
 
 fn extract_symbols(elf: &ObjectFile) -> anyhow::Result<Symbols> {
     let mut rtt_buffer_address = None;
     let mut program_uses_heap = false;
     let mut main_fn_address = None;
+    let mut reset_fn_range = None;
 
     for symbol in elf.symbols() {
         let name = match symbol.name() {
@@ -182,6 +194,7 @@ fn extract_symbols(elf: &ObjectFile) -> anyhow::Result<Symbols> {
         };
 
         let address = symbol.address().try_into().expect("expected 32-bit ELF");
+
         match name {
             "main" => main_fn_address = Some(cortexm::clear_thumb_bit(address)),
             "_SEGGER_RTT" => rtt_buffer_address = Some(address),
@@ -189,16 +202,21 @@ fn extract_symbols(elf: &ObjectFile) -> anyhow::Result<Symbols> {
                 log::debug!("symbol `{}` indicates heap is in use", name);
                 program_uses_heap = true;
             }
+            "Reset" => {
+                let size: u32 = symbol.size().try_into().expect("expected 32-bit ELF");
+                reset_fn_range = Some(address..(address + size));
+            }
             _ => {}
         }
     }
 
-    let main_function_address =
-        main_fn_address.ok_or_else(|| anyhow!("`main` symbol not found"))?;
+    let main_fn_address = main_fn_address.ok_or(anyhow!("`main` symbol not found"))?;
+    let reset_fn_range = reset_fn_range.ok_or(anyhow!("`reset` symbol not found"))?;
 
     Ok(Symbols {
         rtt_buffer_address,
         program_uses_heap,
-        main_fn_address: main_function_address,
+        main_fn_address,
+        reset_fn_range,
     })
 }
