@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{ops::Range, path::Path};
 
 use probe_rs::{config::RamRegion, Core};
 use signal_hook::consts::signal;
@@ -43,8 +43,9 @@ pub fn print(
     active_ram_region: &Option<RamRegion>,
     settings: &mut Settings<'_>,
     stack_start: u32,
+    reset_range: Range<u32>,
 ) -> anyhow::Result<Outcome> {
-    let unwind = unwind::target(core, elf, active_ram_region, stack_start);
+    let unwind = unwind::target(core, elf, active_ram_region, stack_start, reset_range);
 
     let frames = symbolicate::frames(&unwind.raw_frames, settings.current_dir, elf);
 

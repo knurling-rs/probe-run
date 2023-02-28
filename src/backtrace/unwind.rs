@@ -1,5 +1,7 @@
 //! unwind target's program
 
+use std::ops::Range;
+
 use anyhow::{anyhow, Context as _};
 use gimli::{
     BaseAddresses, CieOrFde, DebugFrame, FrameDescriptionEntry, Reader, UnwindContext,
@@ -32,6 +34,7 @@ pub fn target(
     elf: &Elf,
     active_ram_region: &Option<RamRegion>,
     stack_start: u32,
+    reset_range: Range<u32>,
 ) -> Output {
     let mut output = Output {
         corrupted: true,
@@ -94,15 +97,12 @@ pub fn target(
 
         let program_counter_changed = !cortexm::subroutine_eq(lr, pc);
 
-        match !cfa_changed && !program_counter_changed {
-            // If the frame didn't move, and the program counter didn't change, bail out
-            // (otherwise we might print the same frame over and over).
-            true => {
-                // If we do not end up in the reset function the stack is corrupted
-                output.corrupted = !elf.reset_fn_range().contains(&pc);
-                break;
-            }
-            false => output.corrupted = false,
+        // If the frame didn't move, and the program counter didn't change, bail out
+        // (otherwise we might print the same frame over and over).
+        if !cfa_changed && !program_counter_changed {
+            // If we do not end up in the reset function the stack is corrupted
+            output.corrupted = !reset_range.contains(&pc);
+            break;
         }
 
         // Link Register contains an EXC_RETURN value. This deliberately also includes
