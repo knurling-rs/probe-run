@@ -12,6 +12,7 @@ mod target_info;
 use std::{
     env, fs,
     io::{self, Write as _},
+    ops::Range,
     path::Path,
     process,
     sync::atomic::{AtomicBool, Ordering},
@@ -115,21 +116,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         log::info!("success!");
     }
 
-    let (stack_start, reset_range) = {
-        let mut core = sess.core(0)?;
-        core.reset_and_halt(Duration::from_secs(5))?;
-        let stack_start = core.read_core_reg::<u32>(SP)?;
-        let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
-        core.reset()?;
-        let reset = elf
-            .elf
-            .symbols()
-            .find(|symbol| symbol.address() as u32 == reset_address && symbol.size() != 0)
-            .unwrap();
-        let reset_size = reset.size() as u32;
-
-        (stack_start, reset_address..reset_address + reset_size)
-    };
+    let (stack_start, reset_range) = get_stack_start_and_reset_handler(&mut sess, elf)?;
 
     let canary = Canary::install(&mut sess, &target_info, elf, opts.measure_stack)?;
     if opts.measure_stack && canary.is_none() {
@@ -480,4 +467,23 @@ fn flashing_progress() -> flashing::FlashProgress {
             }
         }
     })
+}
+
+fn get_stack_start_and_reset_handler(
+    sess: &mut Session,
+    elf: &Elf,
+) -> anyhow::Result<(u32, Range<u32>)> {
+    let mut core = sess.core(0)?;
+    core.reset_and_halt(Duration::from_secs(5))?;
+    let stack_start = core.read_core_reg::<u32>(SP)?;
+    let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
+    core.reset()?;
+    let reset = elf
+        .elf
+        .symbols()
+        .find(|symbol| symbol.address() as u32 == reset_address && symbol.size() != 0)
+        .unwrap();
+    let reset_size = reset.size() as u32;
+
+    Ok((stack_start, reset_address..reset_address + reset_size))
 }
