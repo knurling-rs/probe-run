@@ -1,6 +1,6 @@
 ---
 source: tests/snapshot.rs
-assertion_line: 113
+assertion_line: 114
 expression: run_result.output
 
 ---
@@ -23,5 +23,6 @@ ack(m=9, n=0, SP=2000ba18)
 ack(m=8, n=1, SP=200079f8)
 ack(m=8, n=0, SP=200039d8)
 ────────────────────────────────────────────────────────────────────────────────
+(HOST) WARN  program has used at least 240.62/254.93 KiB (94.4%) of stack space
 (HOST) ERROR the program has overflowed its stack
 

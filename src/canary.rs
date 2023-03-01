@@ -78,10 +78,7 @@ impl Canary {
             // When measuring stack consumption, we have to color the whole stack.
             stack_available as usize
         } else {
-            // We consider >90% stack usage a potential stack overflow, but don't go beyond 1 kb
-            // since filling a lot of RAM is slow (and 1 kb should be "good enough" for what we're
-            // doing).
-            round_up(1024.min(stack_available / 10), 4) as usize
+            round_up(stack_available / 10, 4) as usize
         };
 
         log::debug!(
