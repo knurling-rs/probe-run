@@ -95,6 +95,10 @@ pub fn target(
 
         log::debug!("LR={lr:#010X} PC={pc:#010X}");
 
+        // Link Register contains an EXC_RETURN value. This deliberately also includes
+        // invalid combinations of final bits 0-4 to prevent futile backtrace re-generation attempts
+        let exception_entry = lr >= cortexm::EXC_RETURN_MARKER;
+
         let program_counter_changed = !cortexm::subroutine_eq(lr, pc);
 
         // If the frame didn't move, and the program counter didn't change, bail out
@@ -104,10 +108,6 @@ pub fn target(
             output.corrupted = !reset_range.contains(&pc);
             break;
         }
-
-        // Link Register contains an EXC_RETURN value. This deliberately also includes
-        // invalid combinations of final bits 0-4 to prevent futile backtrace re-generation attempts
-        let exception_entry = lr >= cortexm::EXC_RETURN_MARKER;
 
         if exception_entry {
             output.raw_frames.push(RawFrame::Exception);
