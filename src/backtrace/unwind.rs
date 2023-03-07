@@ -147,10 +147,12 @@ pub fn target(
         }
 
         // if the SP is above the start of the stack, the stack is corrupt
-        let advanced_sp = registers.get(registers::SP).unwrap();
-        if advanced_sp > stack_start {
-            output.corrupted = true;
-            break;
+        match registers.get(registers::SP) {
+            Ok(advanced_sp) if advanced_sp > stack_start => {
+                output.corrupted = true;
+                break;
+            }
+            _ => {}
         }
     }
 
