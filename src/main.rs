@@ -478,12 +478,16 @@ fn get_stack_start_and_reset_handler(
     let stack_start = core.read_core_reg::<u32>(SP)?;
     let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
     core.reset()?;
-    let reset = elf
+    let mut reset_symbols = elf
         .elf
         .symbols()
-        .find(|symbol| symbol.address() as u32 == reset_address && symbol.size() != 0)
-        .unwrap();
-    let reset_size = reset.size() as u32;
+        .filter(|symbol| symbol.address() as u32 == reset_address && symbol.size() != 0)
+        .collect::<Vec<_>>();
+    let reset_symbol = match reset_symbols.len() {
+        1 => reset_symbols.remove(0),
+        _ => bail!("unable to determine reset handler"),
+    };
+    let reset_size = reset_symbol.size() as u32;
 
     Ok((stack_start, reset_address..reset_address + reset_size))
 }
