@@ -11,12 +11,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 - [#380] Add `--erase-all` flag
 - [#379] Update to `probe-rs v0.17`
 - [#378] Update to `probe-rs v0.16`
+- [#86] Add GDB server support
 
 [#384]: https://github.com/knurling-rs/probe-run/pull/384
 [#381]: https://github.com/knurling-rs/probe-run/pull/381
 [#380]: https://github.com/knurling-rs/probe-run/pull/380
 [#379]: https://github.com/knurling-rs/probe-run/pull/379
 [#378]: https://github.com/knurling-rs/probe-run/pull/378
+[#86]: https://github.com/knurling-rs/probe-run/pull/386
 
 ## [v0.3.6] - 2023-01-23
 

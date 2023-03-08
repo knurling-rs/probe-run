@@ -15,7 +15,7 @@ use std::{
     path::Path,
     process,
     sync::atomic::{AtomicBool, Ordering},
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -87,7 +87,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         }
         probe_attach?
     };
-    log::debug!("started session");
+    log::warn!("started session");
 
     if opts.no_flash {
         log::info!("skipped flashing");
@@ -112,18 +112,36 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     if opts.measure_stack && canary.is_none() {
         bail!("failed to set up stack measurement");
     }
-    start_program(&mut sess, elf)?;
+
+    let sess = Arc::new(Mutex::new(sess));
+
+    let gdb_handle = start_program(sess.clone(), elf, opts.gdblisten.as_deref())?;
 
     let current_dir = &env::current_dir()?;
 
-    let memory_map = sess.target().memory_map.clone();
-    let mut core = sess.core(0)?;
+    log::warn!("Getting memory map");
 
-    let halted_due_to_signal =
-        extract_and_print_logs(elf, &mut core, &memory_map, opts, current_dir)?;
+    let memory_map = sess.lock().unwrap().target().memory_map.clone();
+
+    log::warn!("Getting core");
+
+    log::warn!("Getting logs");
+
+    let halted_due_to_signal = extract_and_print_logs(
+        elf,
+        sess.clone(),
+        &memory_map,
+        opts,
+        current_dir,
+        opts.gdblisten.is_some(),
+    )?;
+
+    log::warn!("Got logs, result = {}", halted_due_to_signal);
 
     print_separator()?;
 
+    let mut locked_session = sess.lock().unwrap();
+    let mut core = locked_session.core(0)?;
     let canary_touched = canary
         .map(|canary| canary.touched(&mut core, elf))
         .transpose()?
@@ -155,31 +173,84 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
 
     core.reset_and_halt(TIMEOUT)?;
 
+    drop(core);
+    drop(locked_session);
+
     outcome.log();
+
+    if let Some(gdb_handle) = gdb_handle {
+        log::warn!("Waiting for GDB to stop");
+        let _ = gdb_handle.join();
+    }
 
     Ok(outcome.into())
 }
 
-fn start_program(sess: &mut Session, elf: &Elf) -> anyhow::Result<()> {
-    let mut core = sess.core(0)?;
+fn start_program(
+    sess: Arc<Mutex<Session>>,
+    elf: &Elf,
+    gdbport: Option<&str>,
+) -> anyhow::Result<Option<std::thread::JoinHandle<()>>> {
+    {
+        let mut locked_session = sess.lock().unwrap();
+        let mut core = locked_session.core(0)?;
 
-    log::debug!("starting device");
-    if core.available_breakpoint_units()? == 0 {
-        if elf.rtt_buffer_address().is_some() {
-            bail!("RTT not supported on device without HW breakpoints");
-        } else {
-            log::warn!("device doesn't support HW breakpoints; HardFault will NOT make `probe-run` exit with an error code");
+        log::debug!("starting device");
+        if core.available_breakpoint_units()? == 0 {
+            if elf.rtt_buffer_address().is_some() {
+                bail!("RTT not supported on device without HW breakpoints");
+            } else {
+                log::warn!("device doesn't support HW breakpoints; HardFault will NOT make `probe-run` exit with an error code");
+            }
         }
+
+        if let Some(rtt_buffer_address) = elf.rtt_buffer_address() {
+            set_rtt_to_blocking(&mut core, elf.main_fn_address(), rtt_buffer_address)?
+        }
+
+        core.set_hw_breakpoint(cortexm::clear_thumb_bit(elf.vector_table.hard_fault).into())?;
     }
 
-    if let Some(rtt_buffer_address) = elf.rtt_buffer_address() {
-        set_rtt_to_blocking(&mut core, elf.main_fn_address(), rtt_buffer_address)?
+    let mut gdb_thread_handle = None;
+
+    if let Some(port) = gdbport {
+        log::info!("Starting gdbserver on {:?}", port);
+        let gdb_connection_string = port.to_owned();
+        let session = sess.clone();
+
+        gdb_thread_handle = Some(std::thread::spawn(move || {
+            log::info!(
+                "    {} listening at {}",
+                "GDB stub".green().bold(),
+                gdb_connection_string
+            );
+
+            let instances = {
+                let session = session.lock().unwrap();
+                probe_rs_gdb_server::GdbInstanceConfiguration::from_session(
+                    &session,
+                    Some(gdb_connection_string),
+                )
+            };
+
+            if let Err(e) = probe_rs_gdb_server::run(&session, instances.iter()) {
+                log::warn!("During the execution of GDB an error was encountered:");
+                log::warn!("{:?}", e);
+            }
+        }));
     }
 
-    core.set_hw_breakpoint(cortexm::clear_thumb_bit(elf.vector_table.hard_fault).into())?;
-    core.run()?;
+    if gdb_thread_handle.is_none() {
+        // Only start core if there is no GDB server
+        log::warn!("Starting core...");
+        let mut locked_session = sess.lock().unwrap();
+        let mut core = locked_session.core(0)?;
+        core.run()?;
+    }
 
-    Ok(())
+    log::warn!("Core started...");
+
+    Ok(gdb_thread_handle)
 }
 
 /// Set rtt to blocking mode
@@ -215,20 +286,26 @@ fn set_rtt_to_blocking(
 
 fn extract_and_print_logs(
     elf: &Elf,
-    core: &mut probe_rs::Core,
+    sess: Arc<Mutex<Session>>,
     memory_map: &[MemoryRegion],
     opts: &cli::Opts,
     current_dir: &Path,
+    using_gdb: bool,
 ) -> anyhow::Result<bool> {
     let exit = Arc::new(AtomicBool::new(false));
     let sig_id = signal_hook::flag::register(signal::SIGINT, exit.clone())?;
 
+    let mut locked_session = sess.lock().unwrap();
+    let mut core = locked_session.core(0)?;
+
     let mut logging_channel = if let Some(address) = elf.rtt_buffer_address() {
-        Some(setup_logging_channel(address, core, memory_map)?)
+        Some(setup_logging_channel(address, &mut core, memory_map)?)
     } else {
         eprintln!("RTT logs not available; blocking until the device halts..");
         None
     };
+    drop(core);
+    drop(locked_session);
 
     let use_defmt = logging_channel
         .as_ref()
@@ -256,8 +333,15 @@ fn extract_and_print_logs(
     let mut read_buf = [0; 1024];
     let mut was_halted = false;
     while !exit.load(Ordering::Relaxed) {
+        if using_gdb {
+            // Give GDB a chance. This is the same value used in probe-rs-cli.
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let mut locked_session = sess.lock().unwrap();
+        let mut core = locked_session.core(0)?;
+
         if let Some(logging_channel) = &mut logging_channel {
-            let num_bytes_read = match logging_channel.read(core, &mut read_buf) {
+            let num_bytes_read = match logging_channel.read(&mut core, &mut read_buf) {
                 Ok(n) => n,
                 Err(e) => {
                     eprintln!("RTT error: {e}");
@@ -289,7 +373,7 @@ fn extract_and_print_logs(
 
         let is_halted = core.core_halted()?;
 
-        if is_halted && was_halted {
+        if is_halted && was_halted && !using_gdb {
             break;
         }
         was_halted = is_halted;
@@ -303,6 +387,8 @@ fn extract_and_print_logs(
     // TODO refactor: a printing fucntion shouldn't stop the MC as a side effect
     // Ctrl-C was pressed; stop the microcontroller.
     if exit.load(Ordering::Relaxed) {
+        let mut locked_session = sess.lock().unwrap();
+        let mut core = locked_session.core(0)?;
         core.halt(TIMEOUT)?;
     }
 

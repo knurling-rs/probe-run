@@ -91,6 +91,10 @@ pub struct Opts {
     #[arg(long)]
     pub verify: bool,
 
+    /// Starts a GDB server on this port
+    #[arg(long)]
+    pub gdblisten: Option<String>,
+
     /// Prints version information
     #[arg(short = 'V', long)]
     version: bool,
