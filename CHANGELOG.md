@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 [#380]: https://github.com/knurling-rs/probe-run/pull/380
 [#379]: https://github.com/knurling-rs/probe-run/pull/379
 [#378]: https://github.com/knurling-rs/probe-run/pull/378
-[#86]: https://github.com/knurling-rs/probe-run/pull/386
+[#86]: https://github.com/knurling-rs/probe-run/pull/388
 
 ## [v0.3.6] - 2023-01-23
 
