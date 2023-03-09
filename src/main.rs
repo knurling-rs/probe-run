@@ -87,7 +87,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         }
         probe_attach?
     };
-    log::warn!("started session");
+    log::debug!("started session");
 
     if opts.no_flash {
         log::info!("skipped flashing");
@@ -119,13 +119,11 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
 
     let current_dir = &env::current_dir()?;
 
-    log::warn!("Getting memory map");
+    log::debug!("Getting memory map");
 
     let memory_map = sess.lock().unwrap().target().memory_map.clone();
 
-    log::warn!("Getting core");
-
-    log::warn!("Getting logs");
+    log::debug!("Getting logs");
 
     let halted_due_to_signal = extract_and_print_logs(
         elf,
@@ -136,7 +134,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         opts.gdblisten.is_some(),
     )?;
 
-    log::warn!("Got logs, result = {}", halted_due_to_signal);
+    log::debug!("Got logs, result = {}", halted_due_to_signal);
 
     print_separator()?;
 
@@ -214,14 +212,13 @@ fn start_program(
     let mut gdb_thread_handle = None;
 
     if let Some(port) = gdbport {
-        log::info!("Starting gdbserver on {:?}", port);
         let gdb_connection_string = port.to_owned();
         let session = sess.clone();
 
         gdb_thread_handle = Some(std::thread::spawn(move || {
             log::info!(
-                "    {} listening at {}",
-                "GDB stub".green().bold(),
+                "{} to {}",
+                "Now connect GDB".green().bold(),
                 gdb_connection_string
             );
 
@@ -242,13 +239,12 @@ fn start_program(
 
     if gdb_thread_handle.is_none() {
         // Only start core if there is no GDB server
-        log::warn!("Starting core...");
+        log::debug!("Starting core...");
         let mut locked_session = sess.lock().unwrap();
         let mut core = locked_session.core(0)?;
         core.run()?;
+        log::info!("Core started...");
     }
-
-    log::warn!("Core started...");
 
     Ok(gdb_thread_handle)
 }
