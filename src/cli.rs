@@ -91,9 +91,22 @@ pub struct Opts {
     #[arg(long)]
     pub verify: bool,
 
-    /// Starts a GDB server on this port
-    #[arg(long)]
-    pub gdblisten: Option<String>,
+    /// Sets which port we bind the GDB Server to.
+    ///
+    /// Note: doesn't necessarily start the GDB Server. See `--gdb-on-start` and
+    /// `--gdb-on-crash`.
+    #[arg(long, env = "PROBE_RUN_GDB_PORT")]
+    pub gdb_port: Option<String>,
+
+    /// Starts the GDB Server right after flashing.
+    ///
+    /// You must use GDB to start the processor or it won't run.
+    #[arg(long, conflicts_with = "gdb_on_fault")]
+    pub gdb_on_start: bool,
+
+    /// Starts the GDB Server only if the chip faults.
+    #[arg(long, conflicts_with = "gdb_on_start")]
+    pub gdb_on_fault: bool,
 
     /// Prints version information
     #[arg(short = 'V', long)]

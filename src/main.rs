@@ -36,6 +36,15 @@ use crate::{backtrace::Outcome, canary::Canary, elf::Elf, target_info::TargetInf
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 
+/// The default TCP port for the GDB Server
+///
+/// Port 3333 is the OpenOCD default, so we use that.
+///
+/// We only bind to localhost for security reasons, and we force IPv4 because
+/// using `localhost` might bind to the IPv6 address `::1`, which is non-obvious
+/// and will cause issues if people use `target remote 127.0.0.1:3333` in GDB.
+const GDB_SERVER_DEFAULT_PORT: &str = "127.0.0.1:3333";
+
 fn main() -> anyhow::Result<()> {
     configure_terminal_colorization();
 
@@ -115,7 +124,14 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
 
     let sess = Arc::new(Mutex::new(sess));
 
-    let gdb_handle = start_program(sess.clone(), elf, opts.gdblisten.as_deref())?;
+    let gdb_port = opts.gdb_port.as_deref().unwrap_or(GDB_SERVER_DEFAULT_PORT);
+    let startup_gdb_port = if opts.gdb_on_start {
+        Some(gdb_port)
+    } else {
+        None
+    };
+
+    let _gdb_handle = start_program(sess.clone(), elf, startup_gdb_port)?;
 
     let current_dir = &env::current_dir()?;
 
@@ -131,7 +147,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         &memory_map,
         opts,
         current_dir,
-        opts.gdblisten.is_some(),
+        opts.gdb_on_start,
     )?;
 
     log::debug!("Got logs, result = {}", halted_due_to_signal);
@@ -169,16 +185,52 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         outcome = Outcome::CtrlC
     }
 
-    core.reset_and_halt(TIMEOUT)?;
-
     drop(core);
     drop(locked_session);
 
-    outcome.log();
+    if opts.gdb_on_fault && outcome == Outcome::HardFault {
+        outcome.log();
 
-    if let Some(gdb_handle) = gdb_handle {
-        log::warn!("Waiting for GDB to stop");
-        let _ = gdb_handle.join();
+        let exit = Arc::new(AtomicBool::new(false));
+        signal_hook::flag::register(signal::SIGINT, Arc::clone(&exit))?;
+
+        log::info!("Starting gdbserver on {:?}", gdb_port);
+        let gdb_connection_string = gdb_port.to_owned();
+        let session = sess.clone();
+
+        let _gdb_thread_handle = Some(std::thread::spawn(move || {
+            log::info!(
+                "{} to {}",
+                "Now connect GDB".green().bold(),
+                gdb_connection_string
+            );
+            log::info!("Press Ctrl-C to exit...");
+
+            let instances = {
+                let session = session.lock().unwrap();
+                probe_rs_gdb_server::GdbInstanceConfiguration::from_session(
+                    &session,
+                    Some(gdb_connection_string),
+                )
+            };
+
+            if let Err(e) = probe_rs_gdb_server::run(&session, instances.iter()) {
+                log::warn!("During the execution of GDB an error was encountered:");
+                log::warn!("{:?}", e);
+            }
+        }));
+
+        while !exit.load(Ordering::Relaxed) {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+
+        // FIXME there's no clean way to terminate the `run` thread. in the current implementation,
+        // the process will `exit` (see `main` function) and `Session`'s destructor will not run
+    } else {
+        let mut locked_session = sess.lock().unwrap();
+        let mut core = locked_session.core(0)?;
+        core.reset_and_halt(TIMEOUT)?;
+        outcome.log();
     }
 
     Ok(outcome.into())
