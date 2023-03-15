@@ -1,6 +1,8 @@
 use std::{
     io::Read,
-    process::{Command, ExitStatus},
+    process::{Child, Command, ExitStatus},
+    thread,
+    time::Duration,
 };
 
 use os_pipe::pipe;
@@ -12,10 +14,15 @@ struct RunResult {
     output: String,
 }
 
-/// run probe-run with `args` and truncate the "Finished .. in .." and "Running `...`" flashing output
-/// NOTE: this currently only capures `stdin`, so any `log::` ed output, like flashing
-fn run(args: &str) -> RunResult {
+/// Run `probe-run` with `args` and truncate the output.
+///
+/// If `terminate` is `true`, the command gets terminated after a short timeout.
+fn run(args: &str, terminate: bool) -> RunResult {
     let (mut reader, mut handle) = run_command(args);
+
+    if terminate {
+        wait_and_terminate(&handle);
+    }
 
     // retrieve output and clean up
     let mut probe_run_output = String::new();
@@ -31,13 +38,9 @@ fn run(args: &str) -> RunResult {
     }
 }
 
-#[cfg(target_family = "unix")]
-// runs command with `args` and terminates after `timeout_s` seconds.
-fn run_and_terminate(args: &str, timeout_s: u64) -> RunResult {
-    let (mut reader, mut handle) = run_command(args);
-
+fn wait_and_terminate(handle: &Child) {
     // sleep a bit so that child can process the input
-    std::thread::sleep(std::time::Duration::from_secs(timeout_s));
+    thread::sleep(Duration::from_secs(5));
 
     // send SIGINT to the child
     nix::sys::signal::kill(
@@ -45,34 +48,18 @@ fn run_and_terminate(args: &str, timeout_s: u64) -> RunResult {
         nix::sys::signal::Signal::SIGINT,
     )
     .expect("cannot send ctrl-c");
-
-    // retrieve output and clean up
-    let mut probe_run_output = String::new();
-    reader.read_to_string(&mut probe_run_output).unwrap();
-    let exit_status = handle.wait().unwrap();
-
-    let output = truncate_output(probe_run_output);
-
-    RunResult {
-        exit_status,
-        output,
-    }
 }
 
-fn run_command(args: &str) -> (os_pipe::PipeReader, std::process::Child) {
-    // add prefix to run this repository's version of `probe-run` and
-    // remove user-dependent registry and rustc information from backtrace paths
+fn run_command(args: &str) -> (os_pipe::PipeReader, Child) {
     let cmd = format!("run -- --chip nRF52840_xxAA tests/test_elfs/{args} --shorten-paths");
 
+    // capture stderr and stdout while preserving line order
     let (reader, writer) = pipe().unwrap();
-    let writer_clone = writer.try_clone().unwrap();
 
     let handle = Command::new("cargo")
         .args(cmd.split(' '))
-        // capture stderr and stdout while preserving line order
-        .stdout(writer)
-        .stderr(writer_clone)
-        // run `probe-run`
+        .stdout(writer.try_clone().unwrap())
+        .stderr(writer)
         .spawn()
         .unwrap();
     (reader, handle)
@@ -84,12 +71,10 @@ fn truncate_output(probe_run_output: String) -> String {
         .lines()
         .filter(|line| {
             !line.starts_with("    Finished")
-            && !line.starts_with("     Running `")
-            && !line.starts_with("    Blocking waiting for file lock ")
-            && !line.starts_with("   Compiling probe-run v")
-            // TODO don't drop the `└─ probe_run @ ...` locations after
-            // https://github.com/knurling-rs/probe-run/issues/217 is resolved
-            && !line.starts_with("└─ ")
+                && !line.starts_with("     Running `")
+                && !line.starts_with("    Blocking waiting for file lock ")
+                && !line.starts_with("   Compiling probe-run v")
+                && !line.starts_with("└─ ") // remove after https://github.com/knurling-rs/probe-run/issues/217 is resolved
         })
         .map(|line| format!("{line}\n"))
         .collect()
@@ -108,7 +93,7 @@ fn truncate_output(probe_run_output: String) -> String {
 #[serial]
 #[ignore = "requires the target hardware to be present"]
 fn snapshot_test(#[case] args: &str, #[case] success: bool) {
-    let run_result = run(args);
+    let run_result = run(args, false);
     assert_eq!(success, run_result.exit_status.success());
     insta::assert_snapshot!(run_result.output);
 }
@@ -118,7 +103,7 @@ fn snapshot_test(#[case] args: &str, #[case] success: bool) {
 #[ignore = "requires the target hardware to be present"]
 #[cfg(target_family = "unix")]
 fn ctrl_c_by_user_is_reported_as_such() {
-    let run_result = run_and_terminate("silent-loop-rzcobs", 5);
+    let run_result = run("silent-loop-rzcobs", true);
     assert!(!run_result.exit_status.success());
     insta::assert_snapshot!(run_result.output);
 }
