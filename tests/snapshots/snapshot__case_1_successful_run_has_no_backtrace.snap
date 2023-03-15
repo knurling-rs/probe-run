@@ -1,12 +1,13 @@
 ---
 source: tests/snapshot.rs
+assertion_line: 113
 expression: run_result.output
 
 ---
 (HOST) INFO  flashing program (2 pages / 8.00 KiB)
 (HOST) INFO  success!
 ────────────────────────────────────────────────────────────────────────────────
-INFO  Hello, world!
+Hello, world!
 ────────────────────────────────────────────────────────────────────────────────
 (HOST) INFO  device halted without error
 

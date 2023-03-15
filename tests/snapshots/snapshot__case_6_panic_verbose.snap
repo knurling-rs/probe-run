@@ -1,103 +1,90 @@
 ---
 source: tests/snapshot.rs
+assertion_line: 113
 expression: run_result.output
 
 ---
-(HOST) DEBUG vector table: VectorTable { initial_stack_pointer: 2003fbc8, hard_fault: 15b1 }
+(HOST) DEBUG vector table: VectorTable { initial_stack_pointer: 2003fbc0, hard_fault: 17d3 }
 (HOST) DEBUG RAM region: 0x20000000-0x2003FFFF
-(HOST) DEBUG section `.data` is in RAM at 0x2003FBC8..=0x2003FBF7
+(HOST) DEBUG section `.data` is in RAM at 0x2003FBC0..=0x2003FBF7
 (HOST) DEBUG section `.bss` is in RAM at 0x2003FBF8..=0x2003FBFF
 (HOST) DEBUG section `.uninit` is in RAM at 0x2003FC00..=0x2003FFFF
-(HOST) DEBUG valid SP range: 0x20000000..=0x2003FBC4
+(HOST) DEBUG valid SP range: 0x20000000..=0x2003FBBC
 (HOST) DEBUG found 1 probes
 (HOST) DEBUG opened probe
 (HOST) DEBUG started session
 (HOST) INFO  flashing program (2 pages / 8.00 KiB)
-(HOST) DEBUG Erased sector of size 4096 bytes in 144 ms
-(HOST) DEBUG Erased sector of size 4096 bytes in 109 ms
-(HOST) DEBUG Programmed page of size 4096 bytes in 79 ms
-(HOST) DEBUG Programmed page of size 4096 bytes in 71 ms
+(HOST) DEBUG Erased sector of size 4096 bytes in 121 ms
+(HOST) DEBUG Erased sector of size 4096 bytes in 99 ms
+(HOST) DEBUG Programmed page of size 4096 bytes in 62 ms
+(HOST) DEBUG Programmed page of size 4096 bytes in 62 ms
 (HOST) INFO  success!
-(HOST) DEBUG 261060 bytes of stack available (0x20000000 ..= 0x2003FBC4), using 1024 byte canary
-(HOST) TRACE setting up canary took 0.020s (49.74 KiB/s)
+(HOST) DEBUG 261052 bytes of stack available (0x20000000 ..= 0x2003FBBC), using 1024 byte canary
+(HOST) TRACE setting up canary took 0.020s (51.19 KiB/s)
 (HOST) DEBUG starting device
 (HOST) DEBUG Successfully attached RTT
 ────────────────────────────────────────────────────────────────────────────────
 ERROR panicked at 'explicit panic'
 ────────────────────────────────────────────────────────────────────────────────
-(HOST) TRACE reading canary took 0.010s (104.18 KiB/s)
+(HOST) TRACE reading canary took 0.024s (41.48 KiB/s)
 (HOST) DEBUG stack canary intact
-(HOST) TRACE 0x000015b0: found FDE for 0x000015b0 .. 0x000015c4 at offset 6432
-(HOST) TRACE uwt row for pc 0x000015b0: UnwindTableRow { start_address: 5552, end_address: 5572, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(13), offset: 0 }, registers: RegisterRuleMap { rules: [] } }
-(HOST) DEBUG LR=0xFFFFFFF9 PC=0x000015B0
-(HOST) TRACE 0x000008de: found FDE for 0x000008de .. 0x000008e2 at offset 8572
-(HOST) TRACE uwt row for pc 0x000008de: UnwindTableRow { start_address: 2270, end_address: 2274, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(13), offset: 0 }, registers: RegisterRuleMap { rules: [] } }
-(HOST) DEBUG LR=0x000001C9 PC=0x000008DE
-(HOST) TRACE 0x000001c8: found FDE for 0x000001c0 .. 0x000001ca at offset 96
-(HOST) TRACE uwt row for pc 0x000001c8: UnwindTableRow { start_address: 452, end_address: 458, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(7), offset: 8 }, registers: RegisterRuleMap { rules: [(Register(14), Offset(-4)), (Register(7), Offset(-8))] } }
-(HOST) DEBUG update_cfa: CFA changed Some(2003fb90) -> 2003fb98
-(HOST) TRACE update reg=Register(14), rule=Offset(-4), abs=0x2003fb94 -> value=0x000001d3
-(HOST) TRACE update reg=Register(7), rule=Offset(-8), abs=0x2003fb90 -> value=0x2003fb98
-(HOST) DEBUG LR=0x000001D3 PC=0x000001C8
-(HOST) TRACE 0x000001d2: found FDE for 0x000001ca .. 0x000001d4 at offset 152
-(HOST) TRACE uwt row for pc 0x000001d2: UnwindTableRow { start_address: 462, end_address: 468, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(7), offset: 8 }, registers: RegisterRuleMap { rules: [(Register(14), Offset(-4)), (Register(7), Offset(-8))] } }
-(HOST) DEBUG update_cfa: CFA changed Some(2003fb98) -> 2003fba0
-(HOST) TRACE update reg=Register(14), rule=Offset(-4), abs=0x2003fb9c -> value=0x000001bf
-(HOST) TRACE update reg=Register(7), rule=Offset(-8), abs=0x2003fb98 -> value=0x2003fba8
-(HOST) DEBUG LR=0x000001BF PC=0x000001D2
-(HOST) TRACE 0x000001be: found FDE for 0x00000196 .. 0x000001c0 at offset 48
-(HOST) TRACE uwt row for pc 0x000001be: UnwindTableRow { start_address: 410, end_address: 448, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(7), offset: 8 }, registers: RegisterRuleMap { rules: [(Register(14), Offset(-4)), (Register(7), Offset(-8))] } }
-(HOST) DEBUG update_cfa: CFA changed Some(2003fba0) -> 2003fbb0
-(HOST) TRACE update reg=Register(14), rule=Offset(-4), abs=0x2003fbac -> value=0x00000195
-(HOST) TRACE update reg=Register(7), rule=Offset(-8), abs=0x2003fba8 -> value=0x2003fbb0
-(HOST) DEBUG LR=0x00000195 PC=0x000001BE
-(HOST) TRACE 0x00000194: found FDE for 0x0000018c .. 0x00000196 at offset 20
+(HOST) TRACE 0x000017d2: found FDE for 0x000017d2 .. 0x000017ea at offset 5672
+(HOST) TRACE uwt row for pc 0x000017d2: UnwindTableRow { start_address: 6098, end_address: 6122, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(13), offset: 0 }, registers: RegisterRuleMap { rules: [] } }
+(HOST) DEBUG LR=0xFFFFFFF9 PC=0x000017D2
+(HOST) TRACE 0x0000025a: found FDE for 0x0000025a .. 0x0000025e at offset 6632
+(HOST) TRACE uwt row for pc 0x0000025a: UnwindTableRow { start_address: 602, end_address: 606, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(13), offset: 0 }, registers: RegisterRuleMap { rules: [] } }
+(HOST) DEBUG LR=0x00000195 PC=0x0000025A
+(HOST) TRACE 0x00000194: found FDE for 0x0000018c .. 0x00000196 at offset 96
 (HOST) TRACE uwt row for pc 0x00000194: UnwindTableRow { start_address: 400, end_address: 406, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(7), offset: 8 }, registers: RegisterRuleMap { rules: [(Register(14), Offset(-4)), (Register(7), Offset(-8))] } }
-(HOST) DEBUG update_cfa: CFA changed Some(2003fbb0) -> 2003fbb8
-(HOST) TRACE update reg=Register(14), rule=Offset(-4), abs=0x2003fbb4 -> value=0x000001dd
+(HOST) DEBUG update_cfa: CFA changed Some(2003fb98) -> 2003fba0
+(HOST) TRACE update reg=Register(14), rule=Offset(-4), abs=0x2003fb9c -> value=0x0000019f
+(HOST) TRACE update reg=Register(7), rule=Offset(-8), abs=0x2003fb98 -> value=0x2003fba0
+(HOST) DEBUG LR=0x0000019F PC=0x00000194
+(HOST) TRACE 0x0000019e: found FDE for 0x00000196 .. 0x000001a0 at offset 152
+(HOST) TRACE uwt row for pc 0x0000019e: UnwindTableRow { start_address: 410, end_address: 416, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(7), offset: 8 }, registers: RegisterRuleMap { rules: [(Register(14), Offset(-4)), (Register(7), Offset(-8))] } }
+(HOST) DEBUG update_cfa: CFA changed Some(2003fba0) -> 2003fba8
+(HOST) TRACE update reg=Register(14), rule=Offset(-4), abs=0x2003fba4 -> value=0x0000018b
+(HOST) TRACE update reg=Register(7), rule=Offset(-8), abs=0x2003fba0 -> value=0x2003fbb0
+(HOST) DEBUG LR=0x0000018B PC=0x0000019E
+(HOST) TRACE 0x0000018a: found FDE for 0x00000162 .. 0x0000018c at offset 48
+(HOST) TRACE uwt row for pc 0x0000018a: UnwindTableRow { start_address: 358, end_address: 396, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(7), offset: 8 }, registers: RegisterRuleMap { rules: [(Register(14), Offset(-4)), (Register(7), Offset(-8))] } }
+(HOST) DEBUG update_cfa: CFA changed Some(2003fba8) -> 2003fbb8
+(HOST) TRACE update reg=Register(14), rule=Offset(-4), abs=0x2003fbb4 -> value=0x00000161
 (HOST) TRACE update reg=Register(7), rule=Offset(-8), abs=0x2003fbb0 -> value=0x2003fbb8
-(HOST) DEBUG LR=0x000001DD PC=0x00000194
-(HOST) TRACE 0x000001dc: found FDE for 0x000001d4 .. 0x000001de at offset 6340
-(HOST) TRACE uwt row for pc 0x000001dc: UnwindTableRow { start_address: 472, end_address: 478, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(7), offset: 8 }, registers: RegisterRuleMap { rules: [(Register(14), Offset(-4)), (Register(7), Offset(-8))] } }
+(HOST) DEBUG LR=0x00000161 PC=0x0000018A
+(HOST) TRACE 0x00000160: found FDE for 0x00000158 .. 0x00000162 at offset 20
+(HOST) TRACE uwt row for pc 0x00000160: UnwindTableRow { start_address: 348, end_address: 354, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(7), offset: 8 }, registers: RegisterRuleMap { rules: [(Register(14), Offset(-4)), (Register(7), Offset(-8))] } }
 (HOST) DEBUG update_cfa: CFA changed Some(2003fbb8) -> 2003fbc0
-(HOST) TRACE update reg=Register(14), rule=Offset(-4), abs=0x2003fbbc -> value=0x0000018b
-(HOST) TRACE update reg=Register(7), rule=Offset(-8), abs=0x2003fbb8 -> value=0x2003fbc0
-(HOST) DEBUG LR=0x0000018B PC=0x000001DC
-(HOST) TRACE 0x0000018a: found FDE for 0x00000100 .. 0x0000018c at offset 6312
-(HOST) TRACE uwt row for pc 0x0000018a: UnwindTableRow { start_address: 260, end_address: 396, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(7), offset: 8 }, registers: RegisterRuleMap { rules: [(Register(14), Offset(-4)), (Register(7), Offset(-8))] } }
-(HOST) DEBUG update_cfa: CFA changed Some(2003fbc0) -> 2003fbc8
-(HOST) TRACE update reg=Register(14), rule=Offset(-4), abs=0x2003fbc4 -> value=0xffffffff
-(HOST) TRACE update reg=Register(7), rule=Offset(-8), abs=0x2003fbc0 -> value=0x00000000
-(HOST) DEBUG LR=0xFFFFFFFF PC=0x0000018A
-(HOST) TRACE demangle Ok("_ZN3lib6inline5__udf17h4878bf20408765ceE") (language=Some(DwLang(1C))) -> Ok("lib::inline::__udf")
+(HOST) TRACE update reg=Register(14), rule=Offset(-4), abs=0x2003fbbc -> value=0x0000013d
+(HOST) TRACE update reg=Register(7), rule=Offset(-8), abs=0x2003fbb8 -> value=0x00000000
+(HOST) DEBUG LR=0x0000013D PC=0x00000160
+(HOST) TRACE 0x0000013c: found FDE for 0x00000100 .. 0x0000013e at offset 5688
+(HOST) TRACE uwt row for pc 0x0000013c: UnwindTableRow { start_address: 256, end_address: 318, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(13), offset: 0 }, registers: RegisterRuleMap { rules: [] } }
+(HOST) DEBUG LR=0x0000013D PC=0x0000013C
+(HOST) TRACE demangle Ok("_ZN3lib6inline5__udf17ha5cfb7665e0fe90cE") (language=Some(DwLang(1C))) -> Ok("lib::inline::__udf")
 (HOST) TRACE demangle Ok("__udf") (language=Some(DwLang(1C))) -> Ok("__udf")
-(HOST) TRACE demangle Ok("_ZN8cortex_m3asm3udf17h4c0f9f15c9bfd7bfE") (language=Some(DwLang(1C))) -> Ok("cortex_m::asm::udf")
+(HOST) TRACE demangle Ok("_ZN8cortex_m3asm3udf17he6ff4eef0237912cE") (language=Some(DwLang(1C))) -> Ok("cortex_m::asm::udf")
 (HOST) TRACE demangle Ok("_defmt_panic") (language=Some(DwLang(1C))) -> Ok("_defmt_panic")
-(HOST) TRACE demangle Ok("_ZN5defmt6export5panic17h3fabd155b5d3f035E") (language=Some(DwLang(1C))) -> Ok("defmt::export::panic")
-(HOST) TRACE demangle Ok("_ZN5panic18__cortex_m_rt_main17hdf4a9d08e66ae2a1E") (language=Some(DwLang(1C))) -> Ok("panic::__cortex_m_rt_main")
+(HOST) TRACE demangle Ok("_ZN5defmt6export5panic17hedd7fcdbb5580196E") (language=Some(DwLang(1C))) -> Ok("defmt::export::panic")
+(HOST) TRACE demangle Ok("_ZN5panic18__cortex_m_rt_main17haa1cdf94498fcb9aE") (language=Some(DwLang(1C))) -> Ok("panic::__cortex_m_rt_main")
 (HOST) TRACE demangle Ok("main") (language=Some(DwLang(1C))) -> Ok("main")
-(HOST) TRACE demangle Ok("ResetTrampoline") (language=Some(DwLang(1C))) -> Ok("ResetTrampoline")
-(HOST) TRACE demangle Ok("Reset") (language=Some(DwLang(1C))) -> Ok("Reset")
 stack backtrace:
-   0: 0x000015b0 @ HardFaultTrampoline
+   0: 0x000017d2 @ HardFaultTrampoline
       <exception entry>
-   1: 0x000008de @ lib::inline::__udf
-        at ./asm/inline.rs:172:5
-   2: 0x000008de @ __udf
-        at ./asm/lib.rs:49:17
-   3: 0x000001c8 @ cortex_m::asm::udf
-        at [cortex-m-0.7.3]/src/asm.rs:43:5
-   4: 0x000001d2 @ _defmt_panic
-        at /tmp/app/src/lib.rs:11:5
-   5: 0x000001be @ defmt::export::panic
-        at /home/japaric/.cargo/git/checkouts/defmt-52fbd7917982cfac/e021e7d/src/export.rs:266:14
-   6: 0x000001be @ panic::__cortex_m_rt_main
+   1: 0x0000025a @ lib::inline::__udf
+        at ./asm/inline.rs:181:5
+   2: 0x0000025a @ __udf
+        at ./asm/lib.rs:51:17
+   3: 0x00000194 @ cortex_m::asm::udf
+        at [cortex-m-0.7.7]/src/asm.rs:43:5
+   4: 0x0000019e @ _defmt_panic
+        at /tmp/app/src/lib.rs:12:5
+   5: 0x0000018a @ defmt::export::panic
+        at [defmt-0.3.2]/src/export/mod.rs:133:14
+   6: 0x0000018a @ panic::__cortex_m_rt_main
         at /tmp/app/src/bin/panic.rs:8:5
-   7: 0x00000194 @ main
+   7: 0x00000160 @ main
         at /tmp/app/src/bin/panic.rs:6:1
-   8: 0x000001dc @ ResetTrampoline
-        at [cortex-m-rt-0.6.14]/src/lib.rs:547:26
-   9: 0x0000018a @ Reset
-        at [cortex-m-rt-0.6.14]/src/lib.rs:550:13
+   8: 0x0000013c @ Reset
 (HOST) ERROR the program panicked
 
