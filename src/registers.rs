@@ -7,8 +7,6 @@ pub const LR: RegisterId = RegisterId(14);
 pub const PC: RegisterId = RegisterId(15);
 pub const SP: RegisterId = RegisterId(13);
 
-pub const LR_END: u32 = 0xFFFF_FFFF;
-
 /// Cache and track the state of CPU registers while the stack is being unwound.
 pub struct Registers<'c, 'probe> {
     cache: BTreeMap<u16, u32>,

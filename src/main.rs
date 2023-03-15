@@ -12,6 +12,7 @@ mod target_info;
 use std::{
     env, fs,
     io::{self, Write as _},
+    ops::Range,
     path::Path,
     process,
     sync::atomic::{AtomicBool, Ordering},
@@ -22,6 +23,7 @@ use std::{
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
 use defmt_decoder::{DecodeError, Frame, Locations, StreamDecoder};
+use object::{Object, ObjectSymbol};
 use probe_rs::{
     config::MemoryRegion,
     flashing::{self, Format},
@@ -32,7 +34,13 @@ use probe_rs::{
 };
 use signal_hook::consts::signal;
 
-use crate::{backtrace::Outcome, canary::Canary, elf::Elf, target_info::TargetInfo};
+use crate::{
+    backtrace::Outcome,
+    canary::Canary,
+    elf::Elf,
+    registers::{PC, SP},
+    target_info::TargetInfo,
+};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -108,6 +116,8 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         log::info!("success!");
     }
 
+    let (stack_start, reset_range) = get_stack_start_and_reset_handler(&mut sess, elf)?;
+
     let canary = Canary::install(&mut sess, &target_info, elf, opts.measure_stack)?;
     if opts.measure_stack && canary.is_none() {
         bail!("failed to set up stack measurement");
@@ -145,6 +155,8 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         elf,
         &target_info.active_ram_region,
         &mut backtrace_settings,
+        stack_start,
+        reset_range,
     )?;
 
     // if general outcome was OK but the user ctrl-c'ed, that overrides our outcome
@@ -455,4 +467,27 @@ fn flashing_progress() -> flashing::FlashProgress {
             }
         }
     })
+}
+
+fn get_stack_start_and_reset_handler(
+    sess: &mut Session,
+    elf: &Elf,
+) -> anyhow::Result<(u32, Range<u32>)> {
+    let mut core = sess.core(0)?;
+    core.reset_and_halt(Duration::from_secs(5))?;
+    let stack_start = core.read_core_reg::<u32>(SP)?;
+    let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
+    core.reset()?;
+    let mut reset_symbols = elf
+        .elf
+        .symbols()
+        .filter(|symbol| symbol.address() as u32 == reset_address && symbol.size() != 0)
+        .collect::<Vec<_>>();
+    let reset_symbol = match reset_symbols.len() {
+        1 => reset_symbols.remove(0),
+        _ => bail!("unable to determine reset handler"),
+    };
+    let reset_size = reset_symbol.size() as u32;
+
+    Ok((stack_start, reset_address..reset_address + reset_size))
 }

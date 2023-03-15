@@ -7,12 +7,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 ## [Unreleased]
 
 - [#384] Satisfy clippy
+- [#383] Fix unwinding
 - [#381] Add feature `ftdi` to enable `ftdi` debuggers
 - [#380] Add `--erase-all` flag
 - [#379] Update to `probe-rs v0.17`
 - [#378] Update to `probe-rs v0.16`
 
 [#384]: https://github.com/knurling-rs/probe-run/pull/384
+[#383]: https://github.com/knurling-rs/probe-run/pull/383
 [#381]: https://github.com/knurling-rs/probe-run/pull/381
 [#380]: https://github.com/knurling-rs/probe-run/pull/380
 [#379]: https://github.com/knurling-rs/probe-run/pull/379

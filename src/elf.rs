@@ -9,7 +9,7 @@ use object::{
 use crate::cortexm;
 
 pub struct Elf<'file> {
-    elf: ObjectFile<'file>,
+    pub elf: ObjectFile<'file>,
     symbols: Symbols,
 
     pub debug_frame: DebugFrame<'file>,

@@ -1,5 +1,7 @@
 //! unwind target's program
 
+use std::ops::Range;
+
 use anyhow::{anyhow, Context as _};
 use gimli::{
     BaseAddresses, CieOrFde, DebugFrame, FrameDescriptionEntry, Reader, UnwindContext,
@@ -27,7 +29,13 @@ fn missing_debug_info(pc: u32) -> String {
 ///
 /// This returns as much info as could be collected, even if the collection is interrupted by an error.
 /// If an error occurred during processing, it is stored in `Output::processing_error`.
-pub fn target(core: &mut Core, elf: &Elf, active_ram_region: &Option<RamRegion>) -> Output {
+pub fn target(
+    core: &mut Core,
+    elf: &Elf,
+    active_ram_region: &Option<RamRegion>,
+    stack_start: u32,
+    reset_range: Range<u32>,
+) -> Output {
     let mut output = Output {
         corrupted: true,
         outcome: Outcome::Ok,
@@ -87,21 +95,17 @@ pub fn target(core: &mut Core, elf: &Elf, active_ram_region: &Option<RamRegion>)
 
         log::debug!("LR={lr:#010X} PC={pc:#010X}");
 
-        if lr == registers::LR_END {
-            break;
-        }
-
         // Link Register contains an EXC_RETURN value. This deliberately also includes
         // invalid combinations of final bits 0-4 to prevent futile backtrace re-generation attempts
         let exception_entry = lr >= cortexm::EXC_RETURN_MARKER;
 
         let program_counter_changed = !cortexm::subroutine_eq(lr, pc);
 
-        // If the frame didn't move, and the program counter didn't change, bail out (otherwise we
-        // might print the same frame over and over).
-        output.corrupted = !cfa_changed && !program_counter_changed;
-
-        if output.corrupted {
+        // If the frame didn't move, and the program counter didn't change, bail out
+        // (otherwise we might print the same frame over and over).
+        if !cfa_changed && !program_counter_changed {
+            // If we do not end up in the reset function the stack is corrupted
+            output.corrupted = !reset_range.contains(&pc);
             break;
         }
 
@@ -139,7 +143,16 @@ pub fn target(core: &mut Core, elf: &Elf, active_ram_region: &Option<RamRegion>)
             output.processing_error = Some(anyhow!(
                 "bug? LR ({lr:#010x}) didn't have the Thumb bit set",
             ));
-            return output;
+            break;
+        }
+
+        // if the SP is above the start of the stack, the stack is corrupt
+        match registers.get(registers::SP) {
+            Ok(advanced_sp) if advanced_sp > stack_start => {
+                output.corrupted = true;
+                break;
+            }
+            _ => {}
         }
     }
 
