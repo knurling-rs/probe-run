@@ -186,16 +186,12 @@ fn analyze_vector_table(core: &mut Core) -> anyhow::Result<(u32, u32)> {
 
 fn start_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
     log::debug!("starting device");
-    if core.available_breakpoint_units()? == 0 {
-        if elf.rtt_buffer_address().is_some() {
-            bail!("RTT not supported on device without HW breakpoints");
-        } else {
-            log::warn!("device doesn't support HW breakpoints; HardFault will NOT make `probe-run` exit with an error code");
-        }
-    }
 
-    if let Some(rtt_buffer_address) = elf.rtt_buffer_address() {
-        set_rtt_to_blocking(core, elf.main_fn_address(), rtt_buffer_address)?
+    match (core.available_breakpoint_units()?, elf.rtt_buffer_address()) {
+        (0, Some(_)) => bail!("RTT not supported on device without HW breakpoints"),
+        (0, None) => log::warn!("device doesn't support HW breakpoints; HardFault will NOT make `probe-run` exit with an error code"),
+        (_, Some(rtt_buffer_address)) => set_rtt_to_blocking(core, elf.main_fn_address(), rtt_buffer_address)?,
+        (_, None) => {}
     }
 
     core.set_hw_breakpoint(cortexm::clear_thumb_bit(elf.vector_table.hard_fault).into())?;
