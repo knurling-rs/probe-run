@@ -49,14 +49,14 @@ pub struct Canary {
 
 impl Canary {
     /// Decide if and where to place the stack canary.
+    ///
+    /// Assumes that the target was reset-halted.
     pub fn install(
         core: &mut Core,
         target_info: &TargetInfo,
         elf: &Elf,
         measure_stack: bool,
     ) -> Result<Option<Self>, anyhow::Error> {
-        core.reset_and_halt(TIMEOUT)?;
-
         let stack_info = match &target_info.stack_info {
             Some(stack_info) => stack_info,
             None => {

@@ -60,6 +60,10 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     let memory_map = sess.target().memory_map.clone();
     let core = &mut sess.core(0)?;
 
+    // reset-halt the core; this is necessary for analyzing the vector table and
+    // painting the stack
+    core.reset_and_halt(TIMEOUT)?;
+
     // gather information
     let (stack_start, reset_fn_address) = analyze_vector_table(core)?;
     let elf_bytes = fs::read(elf_path)?;
@@ -198,14 +202,14 @@ fn flashing_progress() -> flashing::FlashProgress {
     })
 }
 
-/// Reset-halt and read the vector table
+/// Read stack-pointer and reset-handler-address from the vector table.
+///
+/// Assumes that the target was reset-halted.
 ///
 /// Returns `(stack_start: u32, reset_fn_address: u32)`
 fn analyze_vector_table(core: &mut Core) -> anyhow::Result<(u32, u32)> {
-    core.reset_and_halt(Duration::from_secs(5))?;
     let stack_start = core.read_core_reg::<u32>(SP)?;
     let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
-    core.reset()?;
     Ok((stack_start, reset_address))
 }
 
