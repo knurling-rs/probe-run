@@ -67,19 +67,19 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     let elf = &Elf::parse(&elf_bytes, elf_path, reset_fn_address)?;
     let target_info = TargetInfo::new(elf, memory_map, probe_target, stack_start)?;
 
+    // install stack canary
     let canary = Canary::install(core, &target_info, elf, opts.measure_stack)?;
     if opts.measure_stack && canary.is_none() {
         bail!("failed to set up stack measurement");
     }
+
+    // run program and print logs until there is an exception
     start_program(core, elf)?;
-
     let current_dir = &env::current_dir()?;
-
-    let halted_due_to_signal =
-        extract_and_print_logs(elf, core, &target_info.memory_map, opts, current_dir)?;
-
+    let halted_due_to_signal = print_logs(core, current_dir, elf, &target_info.memory_map, opts)?; // blocks until exception
     print_separator()?;
 
+    // analyze stack canary
     let canary_touched = canary
         .map(|canary| canary.touched(core, elf))
         .transpose()?
@@ -257,18 +257,18 @@ fn set_rtt_to_blocking(
     Ok(())
 }
 
-fn extract_and_print_logs(
+fn print_logs(
+    core: &mut Core,
+    current_dir: &Path,
     elf: &Elf,
-    core: &mut probe_rs::Core,
     memory_map: &[MemoryRegion],
     opts: &cli::Opts,
-    current_dir: &Path,
 ) -> anyhow::Result<bool> {
     let exit = Arc::new(AtomicBool::new(false));
     let sig_id = signal_hook::flag::register(signal::SIGINT, exit.clone())?;
 
     let mut logging_channel = if let Some(address) = elf.rtt_buffer_address() {
-        Some(setup_logging_channel(address, core, memory_map)?)
+        Some(setup_logging_channel(core, memory_map, address)?)
     } else {
         eprintln!("RTT logs not available; blocking until the device halts..");
         None
@@ -416,9 +416,9 @@ fn location_info(
 }
 
 fn setup_logging_channel(
-    rtt_buffer_address: u32,
-    core: &mut probe_rs::Core,
+    core: &mut Core,
     memory_map: &[MemoryRegion],
+    rtt_buffer_address: u32,
 ) -> anyhow::Result<UpChannel> {
     const NUM_RETRIES: usize = 10; // picked at random, increase if necessary
 
