@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+- [#xxx] Clean `fn run_target_program` up
+
+[#xxx]: https://github.com/knurling-rs/probe-run/pull/xxx
+
 ## [v0.3.6] - 2023-01-23
 
 - [#xxx] Release `probe-run v0.3.7`
