@@ -12,18 +12,18 @@ mod target_info;
 use std::{
     env, fs,
     io::{self, Write as _},
-    ops::Range,
     path::Path,
     process,
-    sync::atomic::{AtomicBool, Ordering},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     time::Duration,
 };
 
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
 use defmt_decoder::{DecodeError, Frame, Locations, StreamDecoder};
-use object::{Object, ObjectSymbol};
 use probe_rs::{
     config::MemoryRegion,
     flashing::{self, Format},
@@ -61,12 +61,11 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     let memory_map = sess.target().memory_map.clone();
     let core = &mut sess.core(0)?;
 
+    // gather information
+    let (stack_start, reset_fn_address) = analyze_vector_table(core)?;
     let elf_bytes = fs::read(elf_path)?;
-    let elf = &Elf::parse(&elf_bytes, elf_path)?;
-
-    let target_info = TargetInfo::new(elf, memory_map, probe_target)?;
-
-    let (stack_start, reset_range) = get_stack_start_and_reset_handler(core, elf)?;
+    let elf = &Elf::parse(&elf_bytes, elf_path, reset_fn_address)?;
+    let target_info = TargetInfo::new(elf, memory_map, probe_target, stack_start)?;
 
     let canary = Canary::install(core, &target_info, elf, opts.measure_stack)?;
     if opts.measure_stack && canary.is_none() {
@@ -103,7 +102,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         &target_info.active_ram_region,
         &mut backtrace_settings,
         stack_start,
-        reset_range,
+        elf.reset_fn_range().clone(),
     )?;
 
     // if general outcome was OK but the user ctrl-c'ed, that overrides our outcome
@@ -194,6 +193,17 @@ fn flash(sess: &mut Session, elf_path: &Path, opts: &cli::Opts) -> anyhow::Resul
         log::info!("success!");
     }
     Ok(())
+}
+
+/// Reset-halt and read the vector table
+///
+/// Returns `(stack_start: u32, reset_fn_address: u32)`
+fn analyze_vector_table(core: &mut Core) -> anyhow::Result<(u32, u32)> {
+    core.reset_and_halt(Duration::from_secs(5))?;
+    let stack_start = core.read_core_reg::<u32>(SP)?;
+    let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
+    core.reset()?;
+    Ok((stack_start, reset_address))
 }
 
 fn start_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
@@ -489,26 +499,4 @@ fn flashing_progress() -> flashing::FlashProgress {
             }
         }
     })
-}
-
-fn get_stack_start_and_reset_handler(
-    core: &mut Core,
-    elf: &Elf,
-) -> anyhow::Result<(u32, Range<u32>)> {
-    core.reset_and_halt(Duration::from_secs(5))?;
-    let stack_start = core.read_core_reg::<u32>(SP)?;
-    let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
-    core.reset()?;
-    let mut reset_symbols = elf
-        .elf
-        .symbols()
-        .filter(|symbol| symbol.address() as u32 == reset_address && symbol.size() != 0)
-        .collect::<Vec<_>>();
-    let reset_symbol = match reset_symbols.len() {
-        1 => reset_symbols.remove(0),
-        _ => bail!("unable to determine reset handler"),
-    };
-    let reset_size = reset_symbol.size() as u32;
-
-    Ok((stack_start, reset_address..reset_address + reset_size))
 }

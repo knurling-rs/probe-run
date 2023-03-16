@@ -19,6 +19,7 @@ pub struct TargetInfo {
     pub memory_map: Vec<MemoryRegion>,
     pub probe_target: probe_rs::Target,
     pub stack_info: Option<StackInfo>,
+    pub stack_start: u32,
 }
 
 pub struct StackInfo {
@@ -32,6 +33,7 @@ impl TargetInfo {
         elf: &Elf,
         memory_map: Vec<MemoryRegion>,
         probe_target: probe_rs::Target,
+        stack_start: u32,
     ) -> anyhow::Result<Self> {
         let active_ram_region =
             extract_active_ram_region(&probe_target, elf.vector_table.initial_stack_pointer);
@@ -44,6 +46,7 @@ impl TargetInfo {
             memory_map,
             probe_target,
             stack_info,
+            stack_start,
         })
     }
 }
