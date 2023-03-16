@@ -52,32 +52,15 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> anyhow::Result<i32> {
+    // connect to probe and flash firmware
     let probe_target = lookup_probe_target(elf_path, chip_name, opts)?;
     let mut sess = attach_to_probe(probe_target.clone(), opts)?;
+    flash(&mut sess, elf_path, opts)?;
 
     let elf_bytes = fs::read(elf_path)?;
     let elf = &Elf::parse(&elf_bytes, elf_path)?;
 
     let target_info = TargetInfo::new(elf, probe_target)?;
-
-    if opts.no_flash {
-        log::info!("skipped flashing");
-    } else {
-        let fp = flashing_progress();
-
-        if opts.erase_all {
-            flashing::erase_all(&mut sess, Some(fp.clone()))?;
-        }
-
-        let mut options = flashing::DownloadOptions::default();
-        options.dry_run = false;
-        options.progress = Some(fp);
-        options.disable_double_buffering = opts.disable_double_buffering;
-        options.verify = opts.verify;
-
-        flashing::download_file_with_options(&mut sess, elf_path, Format::Elf, options)?;
-        log::info!("success!");
-    }
 
     let (stack_start, reset_range) = get_stack_start_and_reset_handler(&mut sess, elf)?;
 
@@ -188,6 +171,28 @@ fn attach_to_probe(probe_target: probe_rs::Target, opts: &cli::Opts) -> anyhow::
     }?;
     log::debug!("started session");
     Ok(sess)
+}
+
+fn flash(sess: &mut Session, elf_path: &Path, opts: &cli::Opts) -> anyhow::Result<()> {
+    if opts.no_flash {
+        log::info!("skipped flashing");
+    } else {
+        let fp = Some(flashing_progress());
+
+        if opts.erase_all {
+            flashing::erase_all(sess, fp.clone())?;
+        }
+
+        let mut options = flashing::DownloadOptions::default();
+        options.dry_run = false;
+        options.progress = fp;
+        options.disable_double_buffering = opts.disable_double_buffering;
+        options.verify = opts.verify;
+
+        flashing::download_file_with_options(sess, elf_path, Format::Elf, options)?;
+        log::info!("success!");
+    }
+    Ok(())
 }
 
 fn start_program(sess: &mut Session, elf: &Elf) -> anyhow::Result<()> {
