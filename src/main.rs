@@ -53,41 +53,12 @@ fn main() -> anyhow::Result<()> {
 
 fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> anyhow::Result<i32> {
     let probe_target = lookup_probe_target(elf_path, chip_name, opts)?;
+    let mut sess = attach_to_probe(probe_target.clone(), opts)?;
 
     let elf_bytes = fs::read(elf_path)?;
     let elf = &Elf::parse(&elf_bytes, elf_path)?;
 
     let target_info = TargetInfo::new(elf, probe_target)?;
-
-    let probe = probe::open(opts)?;
-
-    let probe_target = target_info.probe_target.clone();
-    let permissions = match opts.erase_all {
-        false => Permissions::new(),
-        true => Permissions::new().allow_erase_all(),
-    };
-    let mut sess = if opts.connect_under_reset {
-        probe.attach_under_reset(probe_target, permissions)?
-    } else {
-        let probe_attach = probe.attach(probe_target, permissions);
-        if let Err(probe_rs::Error::Probe(ProbeSpecific(e))) = &probe_attach {
-            // FIXME Using `to_string().contains(...)` is a workaround as the concrete type
-            // of `e` is not public and therefore does not allow downcasting.
-            if e.to_string().contains("JtagNoDeviceConnected") {
-                eprintln!("Info: Jtag cannot find a connected device.");
-                eprintln!("Help:");
-                eprintln!("    Check that the debugger is connected to the chip, if so");
-                eprintln!("    try using probe-run with option `--connect-under-reset`");
-                eprintln!("    or, if using cargo:");
-                eprintln!("        cargo run -- --connect-under-reset");
-                eprintln!("    If using this flag fixed your issue, this error might");
-                eprintln!("    come from the program currently in the chip and using");
-                eprintln!("    `--connect-under-reset` is only a workaround.\n");
-            }
-        }
-        probe_attach?
-    };
-    log::debug!("started session");
 
     if opts.no_flash {
         log::info!("skipped flashing");
@@ -186,6 +157,37 @@ fn lookup_probe_target(
     target_info::check_processor_target_compatability(&probe_target.cores[0], elf_path);
 
     Ok(probe_target)
+}
+
+fn attach_to_probe(probe_target: probe_rs::Target, opts: &cli::Opts) -> anyhow::Result<Session> {
+    let permissions = match opts.erase_all {
+        false => Permissions::new(),
+        true => Permissions::new().allow_erase_all(),
+    };
+    let probe = probe::open(opts)?;
+    let sess = if opts.connect_under_reset {
+        probe.attach_under_reset(probe_target, permissions)
+    } else {
+        let probe_attach = probe.attach(probe_target, permissions);
+        if let Err(probe_rs::Error::Probe(ProbeSpecific(e))) = &probe_attach {
+            // FIXME Using `to_string().contains(...)` is a workaround as the concrete type
+            // of `e` is not public and therefore does not allow downcasting.
+            if e.to_string().contains("JtagNoDeviceConnected") {
+                eprintln!("Info: Jtag cannot find a connected device.");
+                eprintln!("Help:");
+                eprintln!("    Check that the debugger is connected to the chip, if so");
+                eprintln!("    try using probe-run with option `--connect-under-reset`");
+                eprintln!("    or, if using cargo:");
+                eprintln!("        cargo run -- --connect-under-reset");
+                eprintln!("    If using this flag fixed your issue, this error might");
+                eprintln!("    come from the program currently in the chip and using");
+                eprintln!("    `--connect-under-reset` is only a workaround.\n");
+            }
+        }
+        probe_attach
+    }?;
+    log::debug!("started session");
+    Ok(sess)
 }
 
 fn start_program(sess: &mut Session, elf: &Elf) -> anyhow::Result<()> {
