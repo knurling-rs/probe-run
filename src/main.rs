@@ -57,31 +57,32 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     let mut sess = attach_to_probe(probe_target.clone(), opts)?;
     flash(&mut sess, elf_path, opts)?;
 
+    // attack to core
+    let memory_map = sess.target().memory_map.clone();
+    let core = &mut sess.core(0)?;
+
     let elf_bytes = fs::read(elf_path)?;
     let elf = &Elf::parse(&elf_bytes, elf_path)?;
 
-    let target_info = TargetInfo::new(elf, probe_target)?;
+    let target_info = TargetInfo::new(elf, memory_map, probe_target)?;
 
-    let (stack_start, reset_range) = get_stack_start_and_reset_handler(&mut sess, elf)?;
+    let (stack_start, reset_range) = get_stack_start_and_reset_handler(core, elf)?;
 
-    let canary = Canary::install(&mut sess, &target_info, elf, opts.measure_stack)?;
+    let canary = Canary::install(core, &target_info, elf, opts.measure_stack)?;
     if opts.measure_stack && canary.is_none() {
         bail!("failed to set up stack measurement");
     }
-    start_program(&mut sess, elf)?;
+    start_program(core, elf)?;
 
     let current_dir = &env::current_dir()?;
 
-    let memory_map = sess.target().memory_map.clone();
-    let mut core = sess.core(0)?;
-
     let halted_due_to_signal =
-        extract_and_print_logs(elf, &mut core, &memory_map, opts, current_dir)?;
+        extract_and_print_logs(elf, core, &target_info.memory_map, opts, current_dir)?;
 
     print_separator()?;
 
     let canary_touched = canary
-        .map(|canary| canary.touched(&mut core, elf))
+        .map(|canary| canary.touched(core, elf))
         .transpose()?
         .unwrap_or(false);
 
@@ -97,7 +98,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     };
 
     let mut outcome = backtrace::print(
-        &mut core,
+        core,
         elf,
         &target_info.active_ram_region,
         &mut backtrace_settings,
@@ -195,9 +196,7 @@ fn flash(sess: &mut Session, elf_path: &Path, opts: &cli::Opts) -> anyhow::Resul
     Ok(())
 }
 
-fn start_program(sess: &mut Session, elf: &Elf) -> anyhow::Result<()> {
-    let mut core = sess.core(0)?;
-
+fn start_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
     log::debug!("starting device");
     if core.available_breakpoint_units()? == 0 {
         if elf.rtt_buffer_address().is_some() {
@@ -208,7 +207,7 @@ fn start_program(sess: &mut Session, elf: &Elf) -> anyhow::Result<()> {
     }
 
     if let Some(rtt_buffer_address) = elf.rtt_buffer_address() {
-        set_rtt_to_blocking(&mut core, elf.main_fn_address(), rtt_buffer_address)?
+        set_rtt_to_blocking(core, elf.main_fn_address(), rtt_buffer_address)?
     }
 
     core.set_hw_breakpoint(cortexm::clear_thumb_bit(elf.vector_table.hard_fault).into())?;
@@ -493,10 +492,9 @@ fn flashing_progress() -> flashing::FlashProgress {
 }
 
 fn get_stack_start_and_reset_handler(
-    sess: &mut Session,
+    core: &mut Core,
     elf: &Elf,
 ) -> anyhow::Result<(u32, Range<u32>)> {
-    let mut core = sess.core(0)?;
     core.reset_and_halt(Duration::from_secs(5))?;
     let stack_start = core.read_core_reg::<u32>(SP)?;
     let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
