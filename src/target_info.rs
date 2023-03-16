@@ -27,10 +27,7 @@ pub struct StackInfo {
 }
 
 impl TargetInfo {
-    pub fn new(chip: &str, elf: &Elf) -> anyhow::Result<Self> {
-        let probe_target = probe_rs::config::get_target_by_name(chip)?;
-        check_processor_target_compatability(&probe_target.cores, elf.elf_path);
-
+    pub fn new(elf: &Elf, probe_target: probe_rs::Target) -> anyhow::Result<Self> {
         let active_ram_region =
             extract_active_ram_region(&probe_target, elf.vector_table.initial_stack_pointer);
         let stack_info = active_ram_region
@@ -46,7 +43,7 @@ impl TargetInfo {
 }
 
 /// Check if the compilation target and processor fit and emit a warning if not.
-fn check_processor_target_compatability(cores: &[Core], elf_path: &Path) {
+pub fn check_processor_target_compatability(core: &Core, elf_path: &Path) {
     let target = elf_path.iter().find_map(|a| {
         let b = a.to_string_lossy();
         match b.starts_with("thumbv") {
@@ -61,7 +58,7 @@ fn check_processor_target_compatability(cores: &[Core], elf_path: &Path) {
     };
 
     // NOTE(indexing): There *must* always be at least one core.
-    let core_type = cores[0].core_type;
+    let core_type = core.core_type;
     let matches = match core_type {
         CoreType::Armv6m => target == "thumbv6m-none-eabi",
         CoreType::Armv7m => target == "thumbv7m-none-eabi",

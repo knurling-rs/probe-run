@@ -52,20 +52,12 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> anyhow::Result<i32> {
-    if !elf_path.exists() {
-        bail!(
-            "can't find ELF file at `{}`; are you sure you got the right path?",
-            elf_path.display()
-        );
-    }
+    let probe_target = lookup_probe_target(elf_path, chip_name, opts)?;
 
     let elf_bytes = fs::read(elf_path)?;
     let elf = &Elf::parse(&elf_bytes, elf_path)?;
 
-    if let Some(cdp) = &opts.chip_description_path {
-        probe_rs::config::add_target_from_yaml(Path::new(cdp))?;
-    }
-    let target_info = TargetInfo::new(chip_name, elf)?;
+    let target_info = TargetInfo::new(elf, probe_target)?;
 
     let probe = probe::open(opts)?;
 
@@ -170,6 +162,30 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     outcome.log();
 
     Ok(outcome.into())
+}
+
+fn lookup_probe_target(
+    elf_path: &Path,
+    chip_name: &str,
+    opts: &cli::Opts,
+) -> anyhow::Result<probe_rs::Target> {
+    if !elf_path.exists() {
+        bail!(
+            "can't find ELF file at `{}`; are you sure you got the right path?",
+            elf_path.display()
+        );
+    }
+
+    // register chip description
+    if let Some(cdp) = &opts.chip_description_path {
+        probe_rs::config::add_target_from_yaml(Path::new(cdp))?;
+    }
+
+    // look up target and check combat
+    let probe_target = probe_rs::config::get_target_by_name(chip_name)?;
+    target_info::check_processor_target_compatability(&probe_target.cores[0], elf_path);
+
+    Ok(probe_target)
 }
 
 fn start_program(sess: &mut Session, elf: &Elf) -> anyhow::Result<()> {
