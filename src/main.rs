@@ -173,6 +173,31 @@ fn flash(sess: &mut Session, elf_path: &Path, opts: &cli::Opts) -> anyhow::Resul
     Ok(())
 }
 
+fn flashing_progress() -> flashing::FlashProgress {
+    flashing::FlashProgress::new(|evt| {
+        match evt {
+            // The flash layout has been built and the flashing procedure was initialized.
+            flashing::ProgressEvent::Initialized { flash_layout, .. } => {
+                let pages = flash_layout.pages();
+                let num_pages = pages.len();
+                let num_kb = pages.iter().map(|x| x.size() as f64).sum::<f64>() / 1024.0;
+                log::info!("flashing program ({num_pages} pages / {num_kb:.02} KiB)",);
+            }
+            // A sector has been erased. Sectors (usually) contain multiple pages.
+            flashing::ProgressEvent::SectorErased { size, time } => log::debug!(
+                "Erased sector of size {size} bytes in {} ms",
+                time.as_millis()
+            ),
+            // A page has been programmed.
+            flashing::ProgressEvent::PageProgrammed { size, time } => log::debug!(
+                "Programmed page of size {size} bytes in {} ms",
+                time.as_millis()
+            ),
+            _ => { /* Ignore other events */ }
+        }
+    })
+}
+
 /// Reset-halt and read the vector table
 ///
 /// Returns `(stack_start: u32, reset_fn_address: u32)`
@@ -329,6 +354,35 @@ fn print_logs(
     Ok(halted_due_to_signal)
 }
 
+fn setup_logging_channel(
+    core: &mut Core,
+    memory_map: &[MemoryRegion],
+    rtt_buffer_address: u32,
+) -> anyhow::Result<UpChannel> {
+    const NUM_RETRIES: usize = 10; // picked at random, increase if necessary
+
+    let scan_region = ScanRegion::Exact(rtt_buffer_address);
+    for _ in 0..NUM_RETRIES {
+        match Rtt::attach_region(core, memory_map, &scan_region) {
+            Ok(mut rtt) => {
+                log::debug!("Successfully attached RTT");
+                let channel = rtt
+                    .up_channels()
+                    .take(0)
+                    .ok_or_else(|| anyhow!("RTT up channel 0 not found"))?;
+                return Ok(channel);
+            }
+            Err(probe_rs::rtt::Error::ControlBlockNotFound) => log::trace!(
+                "Couldn't attach because the target's RTT control block isn't initialized (yet). retrying"
+            ),
+            Err(e) => return Err(anyhow!(e)),
+        }
+    }
+
+    log::error!("Max number of RTT attach retries exceeded.");
+    Err(anyhow!(probe_rs::rtt::Error::ControlBlockNotFound))
+}
+
 fn decode_and_print_defmt_logs(
     stream_decoder: &mut dyn StreamDecoder,
     locations: Option<&Locations>,
@@ -389,41 +443,6 @@ fn location_info(
         .unwrap_or((None, None, None))
 }
 
-fn setup_logging_channel(
-    core: &mut Core,
-    memory_map: &[MemoryRegion],
-    rtt_buffer_address: u32,
-) -> anyhow::Result<UpChannel> {
-    const NUM_RETRIES: usize = 10; // picked at random, increase if necessary
-
-    let scan_region = ScanRegion::Exact(rtt_buffer_address);
-    for _ in 0..NUM_RETRIES {
-        match Rtt::attach_region(core, memory_map, &scan_region) {
-            Ok(mut rtt) => {
-                log::debug!("Successfully attached RTT");
-
-                let channel = rtt
-                    .up_channels()
-                    .take(0)
-                    .ok_or_else(|| anyhow!("RTT up channel 0 not found"))?;
-
-                return Ok(channel);
-            }
-
-            Err(probe_rs::rtt::Error::ControlBlockNotFound) => {
-                log::trace!("Could not attach because the target's RTT control block isn't initialized (yet). retrying");
-            }
-
-            Err(e) => {
-                return Err(anyhow!(e));
-            }
-        }
-    }
-
-    log::error!("Max number of RTT attach retries exceeded.");
-    Err(anyhow!(probe_rs::rtt::Error::ControlBlockNotFound))
-}
-
 /// Print a line to separate different execution stages.
 fn print_separator() -> io::Result<()> {
     writeln!(io::stderr(), "{}", "─".repeat(80).dimmed())
@@ -436,41 +455,4 @@ fn configure_terminal_colorization() {
     if let Ok("dumb") = env::var("TERM").as_deref() {
         colored::control::set_override(false)
     }
-}
-
-fn flashing_progress() -> flashing::FlashProgress {
-    flashing::FlashProgress::new(|evt| {
-        match evt {
-            // The flash layout has been built and the flashing procedure was initialized.
-            flashing::ProgressEvent::Initialized { flash_layout, .. } => {
-                let pages = flash_layout.pages();
-                let num_pages = pages.len();
-                let num_bytes: u64 = pages.iter().map(|x| x.size() as u64).sum();
-                log::info!(
-                    "flashing program ({} pages / {:.02} KiB)",
-                    num_pages,
-                    num_bytes as f64 / 1024.0
-                );
-            }
-            // A sector has been erased. Sectors (usually) contain multiple pages.
-            flashing::ProgressEvent::SectorErased { size, time } => {
-                log::debug!(
-                    "Erased sector of size {} bytes in {} ms",
-                    size,
-                    time.as_millis()
-                );
-            }
-            // A page has been programmed.
-            flashing::ProgressEvent::PageProgrammed { size, time } => {
-                log::debug!(
-                    "Programmed page of size {} bytes in {} ms",
-                    size,
-                    time.as_millis()
-                );
-            }
-            _ => {
-                // Ignore other events
-            }
-        }
-    })
 }
