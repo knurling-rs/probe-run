@@ -1,7 +1,5 @@
 //! unwind target's program
 
-use std::ops::Range;
-
 use anyhow::{anyhow, Context as _};
 use gimli::{
     BaseAddresses, CieOrFde, DebugFrame, FrameDescriptionEntry, Reader, UnwindContext,
@@ -15,6 +13,7 @@ use crate::{
     elf::Elf,
     registers::{self, Registers},
     stacked::Stacked,
+    target_info::TargetInfo,
 };
 
 fn missing_debug_info(pc: u32) -> String {
@@ -29,13 +28,7 @@ fn missing_debug_info(pc: u32) -> String {
 ///
 /// This returns as much info as could be collected, even if the collection is interrupted by an error.
 /// If an error occurred during processing, it is stored in `Output::processing_error`.
-pub fn target(
-    core: &mut Core,
-    elf: &Elf,
-    active_ram_region: &Option<RamRegion>,
-    stack_start: u32,
-    reset_range: Range<u32>,
-) -> Output {
+pub fn target(core: &mut Core, elf: &Elf, target_info: &TargetInfo) -> Output {
     let mut output = Output {
         corrupted: true,
         outcome: Outcome::Ok,
@@ -62,6 +55,7 @@ pub fn target(
     let base_addresses = BaseAddresses::default();
     let mut unwind_context = UnwindContext::new();
     let mut registers = Registers::new(lr, sp, core);
+    let active_ram_region = &target_info.active_ram_region;
 
     loop {
         if let Some(outcome) =
@@ -105,7 +99,7 @@ pub fn target(
         // (otherwise we might print the same frame over and over).
         if !cfa_changed && !program_counter_changed {
             // If we do not end up in the reset function the stack is corrupted
-            output.corrupted = !reset_range.contains(&pc);
+            output.corrupted = !elf.reset_fn_range().contains(&pc);
             break;
         }
 
@@ -148,7 +142,7 @@ pub fn target(
 
         // if the SP is above the start of the stack, the stack is corrupt
         match registers.get(registers::SP) {
-            Ok(advanced_sp) if advanced_sp > stack_start => {
+            Ok(advanced_sp) if advanced_sp > target_info.stack_start => {
                 output.corrupted = true;
                 break;
             }

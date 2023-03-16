@@ -35,7 +35,6 @@ use probe_rs::{
 use signal_hook::consts::signal;
 
 use crate::{
-    backtrace::Outcome,
     canary::Canary,
     elf::Elf,
     registers::{PC, SP},
@@ -85,36 +84,15 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         .transpose()?
         .unwrap_or(false);
 
-    let panic_present = canary_touched || halted_due_to_signal;
+    // print the backtrace
+    let mut backtrace_settings =
+        backtrace::Settings::new(canary_touched, current_dir, halted_due_to_signal, opts);
+    let outcome = backtrace::print(core, elf, &target_info, &mut backtrace_settings)?;
 
-    let mut backtrace_settings = backtrace::Settings {
-        current_dir,
-        backtrace_limit: opts.backtrace_limit,
-        backtrace: (&opts.backtrace).into(),
-        panic_present,
-        shorten_paths: opts.shorten_paths,
-        include_addresses: opts.verbose > 0,
-    };
-
-    let mut outcome = backtrace::print(
-        core,
-        elf,
-        &target_info.active_ram_region,
-        &mut backtrace_settings,
-        stack_start,
-        elf.reset_fn_range().clone(),
-    )?;
-
-    // if general outcome was OK but the user ctrl-c'ed, that overrides our outcome
-    // (TODO refactor this to be less bumpy)
-    if halted_due_to_signal && outcome == Outcome::Ok {
-        outcome = Outcome::CtrlC
-    }
-
+    // reset the target
     core.reset_and_halt(TIMEOUT)?;
 
     outcome.log();
-
     Ok(outcome.into())
 }
 
@@ -344,8 +322,8 @@ fn print_logs(
     signal_hook::low_level::unregister(sig_id);
     signal_hook::flag::register_conditional_default(signal::SIGINT, exit.clone())?;
 
-    // TODO refactor: a printing fucntion shouldn't stop the MC as a side effect
     // Ctrl-C was pressed; stop the microcontroller.
+    // TODO refactor: a printing function shouldn't stop the MC as a side effect
     if exit.load(Ordering::Relaxed) {
         core.halt(TIMEOUT)?;
     }

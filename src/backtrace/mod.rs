@@ -1,9 +1,9 @@
-use std::{ops::Range, path::Path};
+use std::path::Path;
 
-use probe_rs::{config::RamRegion, Core};
+use probe_rs::Core;
 use signal_hook::consts::signal;
 
-use crate::elf::Elf;
+use crate::{cli::Opts, elf::Elf, target_info::TargetInfo};
 
 mod pp;
 mod symbolicate;
@@ -28,24 +28,46 @@ impl From<&String> for BacktraceOptions {
 }
 
 pub struct Settings<'p> {
-    pub current_dir: &'p Path,
-    pub backtrace: BacktraceOptions,
-    pub panic_present: bool,
     pub backtrace_limit: u32,
-    pub shorten_paths: bool,
+    pub backtrace: BacktraceOptions,
+    pub canary_touched: bool,
+    pub current_dir: &'p Path,
+    pub halted_due_to_signal: bool,
     pub include_addresses: bool,
+    pub shorten_paths: bool,
+}
+
+impl<'p> Settings<'p> {
+    pub fn new(
+        canary_touched: bool,
+        current_dir: &'p Path,
+        halted_due_to_signal: bool,
+        opts: &Opts,
+    ) -> Self {
+        Self {
+            backtrace_limit: opts.backtrace_limit,
+            backtrace: (&opts.backtrace).into(),
+            canary_touched,
+            current_dir,
+            halted_due_to_signal,
+            include_addresses: opts.verbose > 0,
+            shorten_paths: opts.shorten_paths,
+        }
+    }
+
+    fn panic_present(&self) -> bool {
+        self.canary_touched || self.halted_due_to_signal
+    }
 }
 
 /// (virtually) unwinds the target's program and prints its backtrace
 pub fn print(
     core: &mut Core,
     elf: &Elf,
-    active_ram_region: &Option<RamRegion>,
+    target_info: &TargetInfo,
     settings: &mut Settings<'_>,
-    stack_start: u32,
-    reset_range: Range<u32>,
 ) -> anyhow::Result<Outcome> {
-    let unwind = unwind::target(core, elf, active_ram_region, stack_start, reset_range);
+    let mut unwind = unwind::target(core, elf, target_info);
 
     let frames = symbolicate::frames(&unwind.raw_frames, settings.current_dir, elf);
 
@@ -58,7 +80,7 @@ pub fn print(
         BacktraceOptions::Never => false,
         BacktraceOptions::Always => true,
         BacktraceOptions::Auto => {
-            settings.panic_present
+            settings.panic_present()
                 || unwind.outcome == Outcome::StackOverflow
                 || unwind.corrupted
                 || contains_exception
@@ -82,6 +104,11 @@ pub fn print(
                          the backtrace may be incomplete.",
             );
         }
+    }
+
+    // if general outcome was OK but the user ctrl-c'ed, that overrides our outcome
+    if settings.halted_due_to_signal && unwind.outcome == Outcome::Ok {
+        unwind.outcome = Outcome::CtrlC
     }
 
     Ok(unwind.outcome)
