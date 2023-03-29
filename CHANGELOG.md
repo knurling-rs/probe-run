@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+## [v0.3.6] - 2023-01-23
+
+- [#xxx] Release `probe-run v0.3.7`
 - [#385] Update snapshot tests and test stack canary
 - [#384] Satisfy clippy
 - [#383] Fix unwinding
@@ -14,6 +17,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 - [#379] Update to `probe-rs v0.17`
 - [#378] Update to `probe-rs v0.16`
 
+[#xxx]: https://github.com/knurling-rs/probe-run/pull/xxx
 [#385]: https://github.com/knurling-rs/probe-run/pull/385
 [#384]: https://github.com/knurling-rs/probe-run/pull/384
 [#383]: https://github.com/knurling-rs/probe-run/pull/383
@@ -464,7 +468,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 Initial release
 
-[Unreleased]: https://github.com/knurling-rs/probe-run/compare/v0.3.6...main
+[Unreleased]: https://github.com/knurling-rs/probe-run/compare/v0.3.7...main
+[v0.3.6]: https://github.com/knurling-rs/probe-run/compare/v0.3.6...v0.3.7
 [v0.3.6]: https://github.com/knurling-rs/probe-run/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/knurling-rs/probe-run/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/knurling-rs/probe-run/compare/v0.3.3...v0.3.4
