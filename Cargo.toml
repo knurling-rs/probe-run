@@ -27,6 +27,7 @@ log = "0.4"
 object = { version = "0.30", default-features = false }
 probe-rs = "0.17"
 signal-hook = "0.3"
+gdb-server = "0.17"
 
 [dev-dependencies]
 dirs = "5"
