@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use probe_rs::{Core, MemoryInterface, RegisterId, Session};
+use probe_rs::{Core, MemoryInterface, RegisterId};
 
 use crate::{registers::PC, Elf, TargetInfo, TIMEOUT};
 
@@ -49,15 +49,14 @@ pub struct Canary {
 
 impl Canary {
     /// Decide if and where to place the stack canary.
+    ///
+    /// Assumes that the target was reset-halted.
     pub fn install(
-        sess: &mut Session,
+        core: &mut Core,
         target_info: &TargetInfo,
         elf: &Elf,
         measure_stack: bool,
     ) -> Result<Option<Self>, anyhow::Error> {
-        let mut core = sess.core(0)?;
-        core.reset_and_halt(TIMEOUT)?;
-
         let stack_info = match &target_info.stack_info {
             Some(stack_info) => stack_info,
             None => {
@@ -93,7 +92,7 @@ impl Canary {
             log::info!("painting {size_kb:.2} KiB of RAM for stack usage estimation");
         }
         let start = Instant::now();
-        paint_subroutine::execute(&mut core, stack_start, size as u32)?;
+        paint_subroutine::execute(core, stack_start, size as u32)?;
         let seconds = start.elapsed().as_secs_f64();
         log::trace!(
             "setting up canary took {seconds:.3}s ({:.2} KiB/s)",
@@ -110,7 +109,7 @@ impl Canary {
     }
 
     /// Detect if the stack canary was touched.
-    pub fn touched(self, core: &mut probe_rs::Core, elf: &Elf) -> anyhow::Result<bool> {
+    pub fn touched(self, core: &mut Core, elf: &Elf) -> anyhow::Result<bool> {
         let size_kb = self.size as f64 / 1024.0;
         if self.measure_stack {
             log::info!("reading {size_kb:.2} KiB of RAM for stack usage estimation");

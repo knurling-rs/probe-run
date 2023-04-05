@@ -14,10 +14,12 @@ use probe_rs::{
 use crate::elf::Elf;
 
 pub struct TargetInfo {
-    pub probe_target: probe_rs::Target,
     /// RAM region that contains the call stack
     pub active_ram_region: Option<RamRegion>,
+    pub memory_map: Vec<MemoryRegion>,
+    pub probe_target: probe_rs::Target,
     pub stack_info: Option<StackInfo>,
+    pub stack_start: u32,
 }
 
 pub struct StackInfo {
@@ -27,10 +29,12 @@ pub struct StackInfo {
 }
 
 impl TargetInfo {
-    pub fn new(chip: &str, elf: &Elf) -> anyhow::Result<Self> {
-        let probe_target = probe_rs::config::get_target_by_name(chip)?;
-        check_processor_target_compatability(&probe_target.cores, elf.elf_path);
-
+    pub fn new(
+        elf: &Elf,
+        memory_map: Vec<MemoryRegion>,
+        probe_target: probe_rs::Target,
+        stack_start: u32,
+    ) -> anyhow::Result<Self> {
         let active_ram_region =
             extract_active_ram_region(&probe_target, elf.vector_table.initial_stack_pointer);
         let stack_info = active_ram_region
@@ -38,15 +42,17 @@ impl TargetInfo {
             .and_then(|ram_region| extract_stack_info(elf, &ram_region.range));
 
         Ok(Self {
-            probe_target,
             active_ram_region,
+            memory_map,
+            probe_target,
             stack_info,
+            stack_start,
         })
     }
 }
 
 /// Check if the compilation target and processor fit and emit a warning if not.
-fn check_processor_target_compatability(cores: &[Core], elf_path: &Path) {
+pub fn check_processor_target_compatability(core: &Core, elf_path: &Path) {
     let target = elf_path.iter().find_map(|a| {
         let b = a.to_string_lossy();
         match b.starts_with("thumbv") {
@@ -61,7 +67,7 @@ fn check_processor_target_compatability(cores: &[Core], elf_path: &Path) {
     };
 
     // NOTE(indexing): There *must* always be at least one core.
-    let core_type = cores[0].core_type;
+    let core_type = core.core_type;
     let matches = match core_type {
         CoreType::Armv6m => target == "thumbv6m-none-eabi",
         CoreType::Armv7m => target == "thumbv7m-none-eabi",

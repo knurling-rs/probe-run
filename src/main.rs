@@ -12,18 +12,18 @@ mod target_info;
 use std::{
     env, fs,
     io::{self, Write as _},
-    ops::Range,
     path::Path,
     process,
-    sync::atomic::{AtomicBool, Ordering},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     time::Duration,
 };
 
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
 use defmt_decoder::{DecodeError, Frame, Locations, StreamDecoder};
-use object::{Object, ObjectSymbol};
 use probe_rs::{
     config::MemoryRegion,
     flashing::{self, Format},
@@ -35,7 +35,6 @@ use probe_rs::{
 use signal_hook::consts::signal;
 
 use crate::{
-    backtrace::Outcome,
     canary::Canary,
     elf::Elf,
     registers::{PC, SP},
@@ -52,6 +51,60 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> anyhow::Result<i32> {
+    // connect to probe and flash firmware
+    let probe_target = lookup_probe_target(elf_path, chip_name, opts)?;
+    let mut sess = attach_to_probe(probe_target.clone(), opts)?;
+    flash(&mut sess, elf_path, opts)?;
+
+    // attack to core
+    let memory_map = sess.target().memory_map.clone();
+    let core = &mut sess.core(0)?;
+
+    // reset-halt the core; this is necessary for analyzing the vector table and
+    // painting the stack
+    core.reset_and_halt(TIMEOUT)?;
+
+    // gather information
+    let (stack_start, reset_fn_address) = analyze_vector_table(core)?;
+    let elf_bytes = fs::read(elf_path)?;
+    let elf = &Elf::parse(&elf_bytes, elf_path, reset_fn_address)?;
+    let target_info = TargetInfo::new(elf, memory_map, probe_target, stack_start)?;
+
+    // install stack canary
+    let canary = Canary::install(core, &target_info, elf, opts.measure_stack)?;
+    if opts.measure_stack && canary.is_none() {
+        bail!("failed to set up stack measurement");
+    }
+
+    // run program and print logs until there is an exception
+    start_program(core, elf)?;
+    let current_dir = &env::current_dir()?;
+    let halted_due_to_signal = print_logs(core, current_dir, elf, &target_info.memory_map, opts)?; // blocks until exception
+    print_separator()?;
+
+    // analyze stack canary
+    let canary_touched = canary
+        .map(|canary| canary.touched(core, elf))
+        .transpose()?
+        .unwrap_or(false);
+
+    // print the backtrace
+    let mut backtrace_settings =
+        backtrace::Settings::new(canary_touched, current_dir, halted_due_to_signal, opts);
+    let outcome = backtrace::print(core, elf, &target_info, &mut backtrace_settings)?;
+
+    // reset the target
+    core.reset_and_halt(TIMEOUT)?;
+
+    outcome.log();
+    Ok(outcome.into())
+}
+
+fn lookup_probe_target(
+    elf_path: &Path,
+    chip_name: &str,
+    opts: &cli::Opts,
+) -> anyhow::Result<probe_rs::Target> {
     if !elf_path.exists() {
         bail!(
             "can't find ELF file at `{}`; are you sure you got the right path?",
@@ -59,23 +112,26 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         );
     }
 
-    let elf_bytes = fs::read(elf_path)?;
-    let elf = &Elf::parse(&elf_bytes, elf_path)?;
-
+    // register chip description
     if let Some(cdp) = &opts.chip_description_path {
         probe_rs::config::add_target_from_yaml(Path::new(cdp))?;
     }
-    let target_info = TargetInfo::new(chip_name, elf)?;
 
-    let probe = probe::open(opts)?;
+    // look up target and check combat
+    let probe_target = probe_rs::config::get_target_by_name(chip_name)?;
+    target_info::check_processor_target_compatability(&probe_target.cores[0], elf_path);
 
-    let probe_target = target_info.probe_target.clone();
+    Ok(probe_target)
+}
+
+fn attach_to_probe(probe_target: probe_rs::Target, opts: &cli::Opts) -> anyhow::Result<Session> {
     let permissions = match opts.erase_all {
         false => Permissions::new(),
         true => Permissions::new().allow_erase_all(),
     };
-    let mut sess = if opts.connect_under_reset {
-        probe.attach_under_reset(probe_target, permissions)?
+    let probe = probe::open(opts)?;
+    let sess = if opts.connect_under_reset {
+        probe.attach_under_reset(probe_target, permissions)
     } else {
         let probe_attach = probe.attach(probe_target, permissions);
         if let Err(probe_rs::Error::Probe(ProbeSpecific(e))) = &probe_attach {
@@ -93,99 +149,78 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
                 eprintln!("    `--connect-under-reset` is only a workaround.\n");
             }
         }
-        probe_attach?
-    };
+        probe_attach
+    }?;
     log::debug!("started session");
+    Ok(sess)
+}
 
+fn flash(sess: &mut Session, elf_path: &Path, opts: &cli::Opts) -> anyhow::Result<()> {
     if opts.no_flash {
         log::info!("skipped flashing");
     } else {
-        let fp = flashing_progress();
+        let fp = Some(flashing_progress());
 
         if opts.erase_all {
-            flashing::erase_all(&mut sess, Some(fp.clone()))?;
+            flashing::erase_all(sess, fp.clone())?;
         }
 
         let mut options = flashing::DownloadOptions::default();
         options.dry_run = false;
-        options.progress = Some(fp);
+        options.progress = fp;
         options.disable_double_buffering = opts.disable_double_buffering;
         options.verify = opts.verify;
 
-        flashing::download_file_with_options(&mut sess, elf_path, Format::Elf, options)?;
+        flashing::download_file_with_options(sess, elf_path, Format::Elf, options)?;
         log::info!("success!");
     }
-
-    let (stack_start, reset_range) = get_stack_start_and_reset_handler(&mut sess, elf)?;
-
-    let canary = Canary::install(&mut sess, &target_info, elf, opts.measure_stack)?;
-    if opts.measure_stack && canary.is_none() {
-        bail!("failed to set up stack measurement");
-    }
-    start_program(&mut sess, elf)?;
-
-    let current_dir = &env::current_dir()?;
-
-    let memory_map = sess.target().memory_map.clone();
-    let mut core = sess.core(0)?;
-
-    let halted_due_to_signal =
-        extract_and_print_logs(elf, &mut core, &memory_map, opts, current_dir)?;
-
-    print_separator()?;
-
-    let canary_touched = canary
-        .map(|canary| canary.touched(&mut core, elf))
-        .transpose()?
-        .unwrap_or(false);
-
-    let panic_present = canary_touched || halted_due_to_signal;
-
-    let mut backtrace_settings = backtrace::Settings {
-        current_dir,
-        backtrace_limit: opts.backtrace_limit,
-        backtrace: (&opts.backtrace).into(),
-        panic_present,
-        shorten_paths: opts.shorten_paths,
-        include_addresses: opts.verbose > 0,
-    };
-
-    let mut outcome = backtrace::print(
-        &mut core,
-        elf,
-        &target_info.active_ram_region,
-        &mut backtrace_settings,
-        stack_start,
-        reset_range,
-    )?;
-
-    // if general outcome was OK but the user ctrl-c'ed, that overrides our outcome
-    // (TODO refactor this to be less bumpy)
-    if halted_due_to_signal && outcome == Outcome::Ok {
-        outcome = Outcome::CtrlC
-    }
-
-    core.reset_and_halt(TIMEOUT)?;
-
-    outcome.log();
-
-    Ok(outcome.into())
+    Ok(())
 }
 
-fn start_program(sess: &mut Session, elf: &Elf) -> anyhow::Result<()> {
-    let mut core = sess.core(0)?;
-
-    log::debug!("starting device");
-    if core.available_breakpoint_units()? == 0 {
-        if elf.rtt_buffer_address().is_some() {
-            bail!("RTT not supported on device without HW breakpoints");
-        } else {
-            log::warn!("device doesn't support HW breakpoints; HardFault will NOT make `probe-run` exit with an error code");
+fn flashing_progress() -> flashing::FlashProgress {
+    flashing::FlashProgress::new(|evt| {
+        match evt {
+            // The flash layout has been built and the flashing procedure was initialized.
+            flashing::ProgressEvent::Initialized { flash_layout, .. } => {
+                let pages = flash_layout.pages();
+                let num_pages = pages.len();
+                let num_kb = pages.iter().map(|x| x.size() as f64).sum::<f64>() / 1024.0;
+                log::info!("flashing program ({num_pages} pages / {num_kb:.02} KiB)",);
+            }
+            // A sector has been erased. Sectors (usually) contain multiple pages.
+            flashing::ProgressEvent::SectorErased { size, time } => log::debug!(
+                "Erased sector of size {size} bytes in {} ms",
+                time.as_millis()
+            ),
+            // A page has been programmed.
+            flashing::ProgressEvent::PageProgrammed { size, time } => log::debug!(
+                "Programmed page of size {size} bytes in {} ms",
+                time.as_millis()
+            ),
+            _ => { /* Ignore other events */ }
         }
-    }
+    })
+}
 
-    if let Some(rtt_buffer_address) = elf.rtt_buffer_address() {
-        set_rtt_to_blocking(&mut core, elf.main_fn_address(), rtt_buffer_address)?
+/// Read stack-pointer and reset-handler-address from the vector table.
+///
+/// Assumes that the target was reset-halted.
+///
+/// Returns `(stack_start: u32, reset_fn_address: u32)`
+fn analyze_vector_table(core: &mut Core) -> anyhow::Result<(u32, u32)> {
+    let stack_start = core.read_core_reg::<u32>(SP)?;
+    let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
+    Ok((stack_start, reset_address))
+}
+
+fn start_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
+    log::debug!("starting device");
+
+    match (core.available_breakpoint_units()?, elf.rtt_buffer_address()) {
+        (0, Some(_)) => bail!("RTT not supported on device without HW breakpoints"),
+        (0, None) => log::warn!("device doesn't support HW breakpoints; HardFault will NOT make `probe-run` exit with an error code"),
+        (_, Some(rtt_buffer_address)) => set_rtt_to_blocking(core, elf.main_fn_address(), rtt_buffer_address)?,
+        (_, None) => {}
     }
 
     core.set_hw_breakpoint(cortexm::clear_thumb_bit(elf.vector_table.hard_fault).into())?;
@@ -225,18 +260,18 @@ fn set_rtt_to_blocking(
     Ok(())
 }
 
-fn extract_and_print_logs(
+fn print_logs(
+    core: &mut Core,
+    current_dir: &Path,
     elf: &Elf,
-    core: &mut probe_rs::Core,
     memory_map: &[MemoryRegion],
     opts: &cli::Opts,
-    current_dir: &Path,
 ) -> anyhow::Result<bool> {
     let exit = Arc::new(AtomicBool::new(false));
     let sig_id = signal_hook::flag::register(signal::SIGINT, exit.clone())?;
 
     let mut logging_channel = if let Some(address) = elf.rtt_buffer_address() {
-        Some(setup_logging_channel(address, core, memory_map)?)
+        Some(setup_logging_channel(core, memory_map, address)?)
     } else {
         eprintln!("RTT logs not available; blocking until the device halts..");
         None
@@ -312,8 +347,8 @@ fn extract_and_print_logs(
     signal_hook::low_level::unregister(sig_id);
     signal_hook::flag::register_conditional_default(signal::SIGINT, exit.clone())?;
 
-    // TODO refactor: a printing fucntion shouldn't stop the MC as a side effect
     // Ctrl-C was pressed; stop the microcontroller.
+    // TODO refactor: a printing function shouldn't stop the MC as a side effect
     if exit.load(Ordering::Relaxed) {
         core.halt(TIMEOUT)?;
     }
@@ -321,6 +356,35 @@ fn extract_and_print_logs(
     let halted_due_to_signal = exit.load(Ordering::Relaxed);
 
     Ok(halted_due_to_signal)
+}
+
+fn setup_logging_channel(
+    core: &mut Core,
+    memory_map: &[MemoryRegion],
+    rtt_buffer_address: u32,
+) -> anyhow::Result<UpChannel> {
+    const NUM_RETRIES: usize = 10; // picked at random, increase if necessary
+
+    let scan_region = ScanRegion::Exact(rtt_buffer_address);
+    for _ in 0..NUM_RETRIES {
+        match Rtt::attach_region(core, memory_map, &scan_region) {
+            Ok(mut rtt) => {
+                log::debug!("Successfully attached RTT");
+                let channel = rtt
+                    .up_channels()
+                    .take(0)
+                    .ok_or_else(|| anyhow!("RTT up channel 0 not found"))?;
+                return Ok(channel);
+            }
+            Err(probe_rs::rtt::Error::ControlBlockNotFound) => log::trace!(
+                "Couldn't attach because the target's RTT control block isn't initialized (yet). retrying"
+            ),
+            Err(e) => return Err(anyhow!(e)),
+        }
+    }
+
+    log::error!("Max number of RTT attach retries exceeded.");
+    Err(anyhow!(probe_rs::rtt::Error::ControlBlockNotFound))
 }
 
 fn decode_and_print_defmt_logs(
@@ -383,41 +447,6 @@ fn location_info(
         .unwrap_or((None, None, None))
 }
 
-fn setup_logging_channel(
-    rtt_buffer_address: u32,
-    core: &mut probe_rs::Core,
-    memory_map: &[MemoryRegion],
-) -> anyhow::Result<UpChannel> {
-    const NUM_RETRIES: usize = 10; // picked at random, increase if necessary
-
-    let scan_region = ScanRegion::Exact(rtt_buffer_address);
-    for _ in 0..NUM_RETRIES {
-        match Rtt::attach_region(core, memory_map, &scan_region) {
-            Ok(mut rtt) => {
-                log::debug!("Successfully attached RTT");
-
-                let channel = rtt
-                    .up_channels()
-                    .take(0)
-                    .ok_or_else(|| anyhow!("RTT up channel 0 not found"))?;
-
-                return Ok(channel);
-            }
-
-            Err(probe_rs::rtt::Error::ControlBlockNotFound) => {
-                log::trace!("Could not attach because the target's RTT control block isn't initialized (yet). retrying");
-            }
-
-            Err(e) => {
-                return Err(anyhow!(e));
-            }
-        }
-    }
-
-    log::error!("Max number of RTT attach retries exceeded.");
-    Err(anyhow!(probe_rs::rtt::Error::ControlBlockNotFound))
-}
-
 /// Print a line to separate different execution stages.
 fn print_separator() -> io::Result<()> {
     writeln!(io::stderr(), "{}", "─".repeat(80).dimmed())
@@ -430,64 +459,4 @@ fn configure_terminal_colorization() {
     if let Ok("dumb") = env::var("TERM").as_deref() {
         colored::control::set_override(false)
     }
-}
-
-fn flashing_progress() -> flashing::FlashProgress {
-    flashing::FlashProgress::new(|evt| {
-        match evt {
-            // The flash layout has been built and the flashing procedure was initialized.
-            flashing::ProgressEvent::Initialized { flash_layout, .. } => {
-                let pages = flash_layout.pages();
-                let num_pages = pages.len();
-                let num_bytes: u64 = pages.iter().map(|x| x.size() as u64).sum();
-                log::info!(
-                    "flashing program ({} pages / {:.02} KiB)",
-                    num_pages,
-                    num_bytes as f64 / 1024.0
-                );
-            }
-            // A sector has been erased. Sectors (usually) contain multiple pages.
-            flashing::ProgressEvent::SectorErased { size, time } => {
-                log::debug!(
-                    "Erased sector of size {} bytes in {} ms",
-                    size,
-                    time.as_millis()
-                );
-            }
-            // A page has been programmed.
-            flashing::ProgressEvent::PageProgrammed { size, time } => {
-                log::debug!(
-                    "Programmed page of size {} bytes in {} ms",
-                    size,
-                    time.as_millis()
-                );
-            }
-            _ => {
-                // Ignore other events
-            }
-        }
-    })
-}
-
-fn get_stack_start_and_reset_handler(
-    sess: &mut Session,
-    elf: &Elf,
-) -> anyhow::Result<(u32, Range<u32>)> {
-    let mut core = sess.core(0)?;
-    core.reset_and_halt(Duration::from_secs(5))?;
-    let stack_start = core.read_core_reg::<u32>(SP)?;
-    let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
-    core.reset()?;
-    let mut reset_symbols = elf
-        .elf
-        .symbols()
-        .filter(|symbol| symbol.address() as u32 == reset_address && symbol.size() != 0)
-        .collect::<Vec<_>>();
-    let reset_symbol = match reset_symbols.len() {
-        1 => reset_symbols.remove(0),
-        _ => bail!("unable to determine reset handler"),
-    };
-    let reset_size = reset_symbol.size() as u32;
-
-    Ok((stack_start, reset_address..reset_address + reset_size))
 }

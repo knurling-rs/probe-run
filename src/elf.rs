@@ -1,4 +1,10 @@
-use std::{collections::HashSet, convert::TryInto, env, ops::Deref, path::Path};
+use std::{
+    collections::HashSet,
+    convert::TryInto,
+    env,
+    ops::{Deref, Range},
+    path::Path,
+};
 
 use anyhow::{anyhow, bail};
 use defmt_decoder::{Locations, Table};
@@ -9,7 +15,7 @@ use object::{
 use crate::cortexm;
 
 pub struct Elf<'file> {
-    pub elf: ObjectFile<'file>,
+    elf: ObjectFile<'file>,
     symbols: Symbols,
 
     pub debug_frame: DebugFrame<'file>,
@@ -21,7 +27,11 @@ pub struct Elf<'file> {
 }
 
 impl<'file> Elf<'file> {
-    pub fn parse(elf_bytes: &'file [u8], elf_path: &'file Path) -> Result<Self, anyhow::Error> {
+    pub fn parse(
+        elf_bytes: &'file [u8],
+        elf_path: &'file Path,
+        reset_fn_address: u32,
+    ) -> Result<Self, anyhow::Error> {
         let elf = ObjectFile::parse(elf_bytes)?;
 
         let live_functions = extract_live_functions(&elf)?;
@@ -32,7 +42,7 @@ impl<'file> Elf<'file> {
 
         let debug_frame = extract_debug_frame(&elf)?;
 
-        let symbols = extract_symbols(&elf)?;
+        let symbols = extract_symbols(&elf, reset_fn_address)?;
 
         Ok(Self {
             elf,
@@ -52,6 +62,10 @@ impl<'file> Elf<'file> {
 
     pub fn program_uses_heap(&self) -> bool {
         self.symbols.program_uses_heap
+    }
+
+    pub fn reset_fn_range(&self) -> &Range<u32> {
+        &self.symbols.reset_fn_range
     }
 
     pub fn rtt_buffer_address(&self) -> Option<u32> {
@@ -165,15 +179,17 @@ fn extract_debug_frame<'file>(elf: &ObjectFile<'file>) -> anyhow::Result<DebugFr
 }
 
 struct Symbols {
-    rtt_buffer_address: Option<u32>,
-    program_uses_heap: bool,
     main_fn_address: u32,
+    program_uses_heap: bool,
+    reset_fn_range: Range<u32>,
+    rtt_buffer_address: Option<u32>,
 }
 
-fn extract_symbols(elf: &ObjectFile) -> anyhow::Result<Symbols> {
-    let mut rtt_buffer_address = None;
-    let mut program_uses_heap = false;
+fn extract_symbols(elf: &ObjectFile, reset_fn_address: u32) -> anyhow::Result<Symbols> {
     let mut main_fn_address = None;
+    let mut program_uses_heap = false;
+    let mut reset_symbols = Vec::new();
+    let mut rtt_buffer_address = None;
 
     for symbol in elf.symbols() {
         let name = match symbol.name() {
@@ -191,14 +207,28 @@ fn extract_symbols(elf: &ObjectFile) -> anyhow::Result<Symbols> {
             }
             _ => {}
         }
+
+        // find reset handler symbol based on address
+        if address == reset_fn_address && symbol.size() != 0 {
+            reset_symbols.push(symbol);
+        }
     }
 
-    let main_function_address =
-        main_fn_address.ok_or_else(|| anyhow!("`main` symbol not found"))?;
+    let main_fn_address = main_fn_address.ok_or(anyhow!("`main` symbol not found"))?;
+    let reset_fn_range = {
+        let reset = match reset_symbols.len() {
+            1 => reset_symbols.remove(0),
+            _ => bail!("unable to determine reset handler"),
+        };
+        let addr = reset.address().try_into().expect("expected 32-bit ELF");
+        let size: u32 = reset.size().try_into().expect("expected 32-bit ELF");
+        addr..addr + size
+    };
 
     Ok(Symbols {
-        rtt_buffer_address,
+        main_fn_address,
         program_uses_heap,
-        main_fn_address: main_function_address,
+        reset_fn_range,
+        rtt_buffer_address,
     })
 }
