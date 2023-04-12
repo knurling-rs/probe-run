@@ -6,8 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+- [#395] Bump `defmt-decoder` to `0.3.6` due to yanked version `0.3.5`
 - [#389] Clean `fn run_target_program` up
 
+[#395]: https://github.com/knurling-rs/probe-run/pull/395
 [#389]: https://github.com/knurling-rs/probe-run/pull/389
 
 ## [v0.3.6] - 2023-01-23
@@ -56,6 +58,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 [#345]: https://github.com/knurling-rs/probe-run/pull/345
 [#344]: https://github.com/knurling-rs/probe-run/pull/344
 [#343]: https://github.com/knurling-rs/probe-run/pull/343
+[#353]: https://github.com/knurling-rs/probe-run/pull/353
 
 ## [v0.3.4] - 2022-08-10
 
