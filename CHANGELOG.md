@@ -6,13 +6,15 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+## [v0.3.8] - 2023-04-12
+
 - [#395] Bump `defmt-decoder` to `0.3.6` due to yanked version `0.3.5`
 - [#389] Clean `fn run_target_program` up
 
 [#395]: https://github.com/knurling-rs/probe-run/pull/395
 [#389]: https://github.com/knurling-rs/probe-run/pull/389
 
-## [v0.3.6] - 2023-01-23
+## [v0.3.7] - 2023-03-29
 
 - [#xxx] Release `probe-run v0.3.7`
 - [#385] Update snapshot tests and test stack canary
