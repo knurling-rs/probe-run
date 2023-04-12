@@ -264,9 +264,9 @@ dependencies = [
 
 [[package]]
 name = "defmt-decoder"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73fff6df2c2a0ddec2914cdf1c91b35f4f9ef0c5f06798ec1f62ebb12f4b9836"
+checksum = "274366b014d7d1134d9a43a50e591832f8af1ca7fcba1d620eb8e2de093d02de"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -811,7 +811,7 @@ dependencies = [
 
 [[package]]
 name = "probe-run"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "addr2line",
  "anyhow",
