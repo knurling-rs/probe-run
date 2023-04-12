@@ -216,13 +216,16 @@ fn extract_symbols(elf: &ObjectFile, reset_fn_address: u32) -> anyhow::Result<Sy
 
     let main_fn_address = main_fn_address.ok_or(anyhow!("`main` symbol not found"))?;
     let reset_fn_range = {
-        let reset = match reset_symbols.len() {
-            1 => reset_symbols.remove(0),
-            _ => bail!("unable to determine reset handler"),
-        };
-        let addr = reset.address().try_into().expect("expected 32-bit ELF");
-        let size: u32 = reset.size().try_into().expect("expected 32-bit ELF");
-        addr..addr + size
+        if reset_symbols.len() == 1 {
+            let reset = reset_symbols.remove(0);
+            let addr = reset.address().try_into().expect("expected 32-bit ELF");
+            let size: u32 = reset.size().try_into().expect("expected 32-bit ELF");
+            addr..addr + size
+        } else {
+            log::debug!("unable to determine reset handler");
+            // The length of the reset handler is not known as it's not part of the ELF file
+            reset_fn_address..reset_fn_address
+        }
     };
 
     Ok(Symbols {

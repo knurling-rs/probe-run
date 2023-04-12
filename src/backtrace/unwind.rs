@@ -98,8 +98,11 @@ pub fn target(core: &mut Core, elf: &Elf, target_info: &TargetInfo) -> Output {
         // If the frame didn't move, and the program counter didn't change, bail out
         // (otherwise we might print the same frame over and over).
         if !cfa_changed && !program_counter_changed {
-            // If we do not end up in the reset function the stack is corrupted
-            output.corrupted = !elf.reset_fn_range().contains(&pc);
+            // If we do not end up in the reset function the stack is corrupted.
+            // If reset_fn_range is empty, we can't detect this and just assume that
+            // the stack was not corrupted.
+            let reset_fn_range = elf.reset_fn_range();
+            output.corrupted = !(reset_fn_range.contains(&pc) || reset_fn_range.is_empty());
             break;
         }
 
