@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+- [#399] Update link shown in error message
+
+[#399]: https://github.com/knurling-rs/probe-run/pull/399
+
 ## [v0.3.8] - 2023-04-12
 
 - [#395] Bump `defmt-decoder` to `0.3.6` due to yanked version `0.3.5`
@@ -16,7 +20,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [v0.3.7] - 2023-03-29
 
-- [#xxx] Release `probe-run v0.3.7`
+- [#390] Release `probe-run v0.3.7`
 - [#385] Update snapshot tests and test stack canary
 - [#384] Satisfy clippy
 - [#383] Fix unwinding
@@ -25,7 +29,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 - [#379] Update to `probe-rs v0.17`
 - [#378] Update to `probe-rs v0.16`
 
-[#xxx]: https://github.com/knurling-rs/probe-run/pull/xxx
+[#390]: https://github.com/knurling-rs/probe-run/pull/390
 [#385]: https://github.com/knurling-rs/probe-run/pull/385
 [#384]: https://github.com/knurling-rs/probe-run/pull/384
 [#383]: https://github.com/knurling-rs/probe-run/pull/383
