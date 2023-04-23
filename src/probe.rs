@@ -7,7 +7,7 @@ use crate::cli;
 
 const NO_PROBE_FOUND_ERR: &str = "no probe was found.\n
 Common reasons for this are faulty cables or missing permissions.
-For detailed instructions, visit: https://github.com/knurling-rs/probe-run/tree/2f138c3#troubleshooting";
+For detailed instructions, visit: https://github.com/knurling-rs/probe-run#troubleshooting";
 
 pub fn open(opts: &cli::Opts) -> Result<Probe, anyhow::Error> {
     let all_probes = Probe::list_all();
