@@ -7,8 +7,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 ## [Unreleased]
 
 - [#399] Update link shown in error message
+- [#398] Handle reset vector not pointing to ELF symbol
 
 [#399]: https://github.com/knurling-rs/probe-run/pull/399
+[#398]: https://github.com/knurling-rs/probe-run/pull/398
 
 ## [v0.3.8] - 2023-04-12
 
