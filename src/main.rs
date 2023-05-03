@@ -427,7 +427,8 @@ fn location_info(
     shorten_paths: bool,
 ) -> (Option<String>, Option<u32>, Option<String>) {
     locations
-        .map(|locations| &locations[&frame.index()])
+        .map(|locations| locations.get(&frame.index()))
+        .flatten()
         .map(|location| {
             let path = if let Ok(relpath) = location.file.strip_prefix(current_dir) {
                 relpath.display().to_string()
