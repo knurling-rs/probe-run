@@ -8,11 +8,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [v0.3.9] - 2023-05-05
 
-- [#xxx] Release `probe-run v0.3.9`
+- [#403] Release `probe-run v0.3.9`
 - [#399] Update link shown in error message
 - [#398] Handle reset vector not pointing to ELF symbol
 
-[#xxx]: https://github.com/knurling-rs/probe-run/pull/xxx
+[#403]: https://github.com/knurling-rs/probe-run/pull/403
 [#399]: https://github.com/knurling-rs/probe-run/pull/399
 [#398]: https://github.com/knurling-rs/probe-run/pull/398
 
