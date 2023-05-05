@@ -114,7 +114,7 @@ fn lookup_probe_target(
 
     // register chip description
     if let Some(cdp) = &opts.chip_description_path {
-        probe_rs::config::add_target_from_yaml(Path::new(cdp))?;
+        probe_rs::config::add_target_from_yaml(fs::File::open(cdp)?)?;
     }
 
     // look up target and check combat

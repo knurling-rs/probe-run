@@ -6,9 +6,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+## [v0.3.9] - 2023-05-05
+
+- [#403] Release `probe-run v0.3.9`
 - [#399] Update link shown in error message
 - [#398] Handle reset vector not pointing to ELF symbol
 
+[#403]: https://github.com/knurling-rs/probe-run/pull/403
 [#399]: https://github.com/knurling-rs/probe-run/pull/399
 [#398]: https://github.com/knurling-rs/probe-run/pull/398
 
@@ -483,8 +487,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 Initial release
 
-[Unreleased]: https://github.com/knurling-rs/probe-run/compare/v0.3.7...main
-[v0.3.6]: https://github.com/knurling-rs/probe-run/compare/v0.3.6...v0.3.7
+[Unreleased]: https://github.com/knurling-rs/probe-run/compare/v0.3.9...main
+[v0.3.9]: https://github.com/knurling-rs/probe-run/compare/v0.3.8...v0.3.9
+[v0.3.8]: https://github.com/knurling-rs/probe-run/compare/v0.3.7...v0.3.8
+[v0.3.7]: https://github.com/knurling-rs/probe-run/compare/v0.3.6...v0.3.7
 [v0.3.6]: https://github.com/knurling-rs/probe-run/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/knurling-rs/probe-run/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/knurling-rs/probe-run/compare/v0.3.3...v0.3.4

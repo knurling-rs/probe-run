@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{ArgAction, Parser};
-use defmt_decoder::DEFMT_VERSION;
+use defmt_decoder::DEFMT_VERSIONS;
 use git_version::git_version;
 use log::Level;
 use probe_rs::Probe;
@@ -166,7 +166,10 @@ fn print_version() {
     // Extract the "abbreviated object name"
     let hash = extract_git_hash(GIT_DESCRIBE);
 
-    println!("{VERSION} {hash}\nsupported defmt version: {DEFMT_VERSION}");
+    println!(
+        "{VERSION} {hash}\nsupported defmt versions: {}",
+        DEFMT_VERSIONS.join(", ")
+    );
 }
 
 /// Extract git hash from a `git describe` statement
