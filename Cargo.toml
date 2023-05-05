@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 name = "probe-run"
 readme = "README.md"
 repository = "https://github.com/knurling-rs/probe-run"
-version = "0.3.8"
+version = "0.3.9"
 
 [dependencies]
 addr2line = { version = "0.19", default-features = false, features = [
@@ -36,7 +36,7 @@ os_pipe = "1.0"
 pretty_assertions = "1"
 rstest = { version = "0.17", default-features = false }
 nix = "0.26"
-serial_test = { version = "1", default-features = false }
+serial_test = { version = "2", default-features = false }
 
 [features]
 ftdi = ["probe-rs/ftdi"]
