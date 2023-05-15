@@ -7,8 +7,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 ## [Unreleased]
 
 - [#404] Switch from bors to merge queue
+- [#402] Do not panic if locations do not contain the frame
 
 [#404]: https://github.com/knurling-rs/probe-run/pull/404
+[#402]: https://github.com/knurling-rs/probe-run/pull/402
 
 ## [v0.3.9] - 2023-05-05
 
