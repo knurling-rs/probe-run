@@ -6,8 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+- [#405] Also enable merge queue for changelog enforcer
 - [#404] Switch from bors to merge queue
 
+[#405]: https://github.com/knurling-rs/probe-run/pull/405
 [#404]: https://github.com/knurling-rs/probe-run/pull/404
 
 ## [v0.3.9] - 2023-05-05
