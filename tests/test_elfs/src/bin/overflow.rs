@@ -1,12 +1,12 @@
 #![no_main]
 #![no_std]
 
-use app as _;
+use test_elfs as _; // global logger + panicking-behavior + memory layout
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
     ack(10, 10);
-    app::exit()
+    test_elfs::exit()
 }
 
 fn ack(m: u32, n: u32) -> u32 {
