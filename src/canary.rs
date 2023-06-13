@@ -15,33 +15,40 @@ const CANARY_U32: u32 = u32::from_le_bytes([CANARY_U8, CANARY_U8, CANARY_U8, CAN
 
 /// (Location of) the stack canary
 ///
-/// The stack canary is used to detect *potential* stack overflows
+/// The stack canary is used to detect *potential* stack overflows and report the
+/// amount of stack used.
 ///
-/// The canary is placed in memory as shown in the diagram below:
+/// The whole stack is initialized to `CANARY_U8` before the target program is started.
 ///
+/// When the programs ends (due to panic or breakpoint) the size of the canary is checked. If more
+/// than 90%  is "touched" (bytes != `CANARY_U8`) then that is considered to be a *potential* stack
+/// overflow. In any case the amount of used stack is reported.
+///
+/// Before execution:
 /// ``` text
-/// +--------+ -> initial_stack_pointer / stack_range.end()
+/// +--------+ -> stack_range.end() (initial_stack_pointer)
+/// |        |
+/// |        |
+/// | canary |
+/// |        |
+/// |        |
+/// +--------+ -> stack_range.start()
+/// | static | (variables, fixed size)
+/// +--------+ -> lowest RAM address
+/// ```
+///
+/// After execution:
+/// ``` text
+/// +--------+ -> stack_range.end() (initial_stack_pointer)
 /// |        |
 /// | stack  | (grows downwards)
 /// |        |
 /// +--------+
-/// |        |
-/// |        |
-/// +--------+
 /// | canary |
 /// +--------+ -> stack_range.start()
-/// |        |
 /// | static | (variables, fixed size)
-/// |        |
 /// +--------+ -> lowest RAM address
 /// ```
-///
-/// The whole canary is initialized to `CANARY_U8` before the target program is started.
-/// The canary size is 10% of the available stack space or 1 KiB, whichever is smallest.
-///
-/// When the programs ends (due to panic or breakpoint) the integrity of the canary is checked. If it was
-/// "touched" (any of its bytes != `CANARY_U8`) then that is considered to be a *potential* stack
-/// overflow.
 #[derive(Clone, Copy)]
 pub struct Canary {
     addr: u32,
