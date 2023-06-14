@@ -42,4 +42,14 @@ serial_test = { version = "2", default-features = false }
 ftdi = ["probe-rs/ftdi"]
 
 [workspace]
-members = [".", "xtask"]
+members = [".", "tests/test_elfs", "xtask"]
+
+# cargo build/run --release
+[profile.release]
+codegen-units = 1
+debug = 2
+debug-assertions = false # <-
+incremental = false
+lto = 'fat'
+opt-level = 3            # <-
+overflow-checks = false  # <-
