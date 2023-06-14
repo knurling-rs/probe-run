@@ -2,6 +2,8 @@
 //!
 //! cargo xtask build-tests
 
+mod build_tests;
+
 use clap::Parser;
 
 #[derive(Parser)]
@@ -13,6 +15,6 @@ enum Command {
 
 fn main() {
     match Command::parse() {
-        Command::BuildElfs => todo!(),
+        Command::BuildElfs => build_tests::run(),
     }
 }

@@ -1,7 +1,7 @@
 #![no_main]
 #![no_std]
 
-use app as _;
+use test_elfs as _;
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
