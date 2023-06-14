@@ -2,21 +2,19 @@ use std::process::Command;
 
 const PATH: &str = "tests/test_elfs";
 
+/// Build the various test elfs and copy them to the cache
 pub fn run() {
-    // configurations
-    //   1. all with rzcobs
-    //   2. hello-raw
-    //   3. overflow
-
     all_rzcobs();
     hello_raw();
     overflow_no_flip_link();
-
-    // TODO: copy binaries to cache
 }
 
 fn all_rzcobs() {
     cargo_build("--bins", false);
+
+    for name in ["hello", "overflow", "panic", "silent-loop"] {
+        copy(name, &format!("{name}-rzcobs"))
+    }
 }
 
 fn hello_raw() {
@@ -27,10 +25,14 @@ fn hello_raw() {
 
     // deactivate feature `encoding-raw` of `defmt`
     run_cmd("git checkout HEAD -- Cargo.toml", "");
+
+    copy("hello", "hello-raw");
 }
 
 fn overflow_no_flip_link() {
     cargo_build("--bin overflow", true);
+
+    copy("overflow", "overflow-no-flip-link");
 }
 
 fn cargo_build(target: &str, no_flip_link: bool) {
@@ -59,4 +61,11 @@ fn run_cmd(command: &str, rustflags: &str) {
     if !success {
         panic!("command failed: {command}");
     }
+}
+
+fn copy(old_name: &str, new_name: &str) {
+    run_cmd(
+        &format!("cp ../../target/thumbv7em-none-eabihf/release/{old_name} cache/{new_name}"),
+        "",
+    );
 }
