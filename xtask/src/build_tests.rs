@@ -8,28 +8,32 @@ pub fn run() {
     //   2. hello-raw
     //   3. overflow
 
-    cargo_build("--bins", false, false);
-    cargo_build("--bin hello", false, true);
-    cargo_build("--bin overflow", true, false);
+    all_rzcobs();
+    hello_raw();
+    overflow_no_flip_link();
 
     // TODO: copy binaries to cache
 }
 
-fn cargo_build(target: &str, no_flip_link: bool, raw_encoding: bool) {
-    if raw_encoding {
-        // activate feature `encoding-raw` of `defmt`
-        run_cmd("cargo add defmt --features encoding-raw", "");
-    }
-
-    abc(no_flip_link, target);
-
-    if raw_encoding {
-        // deactivate feature `encoding-raw` of `defmt`
-        run_cmd("git checkout HEAD -- Cargo.toml", "");
-    }
+fn all_rzcobs() {
+    cargo_build("--bins", false);
 }
 
-fn abc(no_flip_link: bool, target: &str) {
+fn hello_raw() {
+    // activate feature `encoding-raw` of `defmt`
+    run_cmd("cargo add defmt --features encoding-raw", "");
+
+    cargo_build("--bin hello", false);
+
+    // deactivate feature `encoding-raw` of `defmt`
+    run_cmd("git checkout HEAD -- Cargo.toml", "");
+}
+
+fn overflow_no_flip_link() {
+    cargo_build("--bin overflow", true);
+}
+
+fn cargo_build(target: &str, no_flip_link: bool) {
     let mut args = "cargo build --release --target thumbv7em-none-eabihf ".to_string();
     args.push_str(target);
 
