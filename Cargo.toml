@@ -40,3 +40,6 @@ serial_test = { version = "2", default-features = false }
 
 [features]
 ftdi = ["probe-rs/ftdi"]
+
+[workspace]
+members = [".", "xtask"]
