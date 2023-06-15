@@ -53,10 +53,9 @@ impl<'p> Path<'p> {
 }
 
 fn get_component_normal(component: Component) -> Option<&OsStr> {
-    if let Component::Normal(string) = component {
-        Some(string)
-    } else {
-        None
+    match component {
+        Component::Normal(string) => Some(string),
+        _ => None,
     }
 }
 

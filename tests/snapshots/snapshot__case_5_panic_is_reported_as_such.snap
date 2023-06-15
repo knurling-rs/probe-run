@@ -1,6 +1,6 @@
 ---
 source: tests/snapshot.rs
-assertion_line: 113
+assertion_line: 114
 expression: run_result.output
 
 ---
@@ -17,15 +17,15 @@ stack backtrace:
    2: __udf
         at ./asm/lib.rs:51:17
    3: cortex_m::asm::udf
-        at [cortex-m-0.7.7]/src/asm.rs:43:5
+        at [cortex-m-0.7.7]/src/call_asm.rs:19:21
    4: _defmt_panic
-        at /tmp/app/src/lib.rs:12:5
+        at /test_elfs/src/lib.rs:12:5
    5: defmt::export::panic
-        at [defmt-0.3.2]/src/export/mod.rs:133:14
+        at [defmt-0.3.4]/src/export/mod.rs:133:14
    6: panic::__cortex_m_rt_main
-        at /tmp/app/src/bin/panic.rs:8:5
+        at /test_elfs/src/bin/panic.rs:8:5
    7: main
-        at /tmp/app/src/bin/panic.rs:6:1
+        at /test_elfs/src/bin/panic.rs:6:1
    8: Reset
 (HOST) ERROR the program panicked
 

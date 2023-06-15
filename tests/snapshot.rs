@@ -62,7 +62,7 @@ fn run_and_terminate(args: &str, timeout_s: u64) -> RunResult {
 fn run_command(args: &str) -> (os_pipe::PipeReader, std::process::Child) {
     // add prefix to run this repository's version of `probe-run` and
     // remove user-dependent registry and rustc information from backtrace paths
-    let cmd = format!("run -- --chip nRF52840_xxAA tests/test_elfs/{args} --shorten-paths");
+    let cmd = format!("run -- --chip nRF52840_xxAA tests/test_elfs/cache/{args} --shorten-paths");
 
     let (reader, writer) = pipe().unwrap();
     let writer_clone = writer.try_clone().unwrap();

@@ -1,0 +1,28 @@
+[package]
+authors = ["The Knurling-rs developers"]
+name = "test_elfs"
+edition = "2021"
+version = "0.1.0"
+
+[lib]
+harness = false
+
+[dependencies]
+cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7"
+defmt = "0.3"
+defmt-rtt = "0.4"
+panic-probe = { version = "0.3", features = ["print-defmt"] }
+nrf52840-hal = "0.16"
+
+[workspace]
+
+# cargo build/run --release
+[profile.release]
+codegen-units = 1
+debug = 2
+debug-assertions = false # <-
+incremental = false
+lto = 'fat'
+opt-level = 3            # <-
+overflow-checks = false  # <-

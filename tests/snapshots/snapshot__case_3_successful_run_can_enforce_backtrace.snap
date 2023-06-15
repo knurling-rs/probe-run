@@ -1,6 +1,6 @@
 ---
 source: tests/snapshot.rs
-assertion_line: 113
+assertion_line: 114
 expression: run_result.output
 
 ---
@@ -14,12 +14,14 @@ stack backtrace:
         at ./asm/inline.rs:14:5
    1: __bkpt
         at ./asm/lib.rs:51:17
-   2: app::exit
-        at /tmp/app/src/lib.rs:17:5
-   3: hello::__cortex_m_rt_main
-        at /tmp/app/src/bin/hello.rs:10:5
-   4: main
-        at /tmp/app/src/bin/hello.rs:6:1
-   5: Reset
+   2: cortex_m::asm::bkpt
+        at [cortex-m-0.7.7]/src/call_asm.rs:19:21
+   3: test_elfs::exit
+        at /test_elfs/src/lib.rs:18:9
+   4: hello::__cortex_m_rt_main
+        at /test_elfs/src/bin/hello.rs:10:5
+   5: main
+        at /test_elfs/src/bin/hello.rs:6:1
+   6: Reset
 (HOST) INFO  device halted without error
 

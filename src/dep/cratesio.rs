@@ -35,7 +35,9 @@ impl<'p> Path<'p> {
         registry_prefix.push(src);
 
         let github = super::get_component_normal(components.next()?)?.to_str()?;
-        if !github.starts_with("github.com-") {
+        // Rust 1.52 uses "github.com"
+        // Rust 1.70 uses "index.crates.io"
+        if !(github.starts_with("github.com-") || github.starts_with("index.crates.io-")) {
             return None;
         }
         registry_prefix.push(github);

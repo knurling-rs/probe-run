@@ -7,23 +7,24 @@ expression: run_result.output
 (HOST) INFO  flashing program (2 pages / 8.00 KiB)
 (HOST) INFO  success!
 ────────────────────────────────────────────────────────────────────────────────
-ack(m=10, n=10, SP=2003bb98)
-ack(m=10, n=9, SP=20037b78)
-ack(m=10, n=8, SP=20033b58)
-ack(m=10, n=7, SP=2002fb38)
-ack(m=10, n=6, SP=2002bb18)
-ack(m=10, n=5, SP=20027af8)
-ack(m=10, n=4, SP=20023ad8)
-ack(m=10, n=3, SP=2001fab8)
-ack(m=10, n=2, SP=2001ba98)
-ack(m=10, n=1, SP=20017a78)
-ack(m=10, n=0, SP=20013a58)
-ack(m=9, n=1, SP=2000fa38)
-ack(m=9, n=0, SP=2000ba18)
-ack(m=8, n=1, SP=200079f8)
-ack(m=8, n=0, SP=200039d8)
+ack(m=10, n=10, SP=0x2003bfd4)
+ack(m=10, n=9, SP=0x20037fb4)
+ack(m=10, n=8, SP=0x20033f94)
+ack(m=10, n=7, SP=0x2002ff74)
+ack(m=10, n=6, SP=0x2002bf54)
+ack(m=10, n=5, SP=0x20027f34)
+ack(m=10, n=4, SP=0x20023f14)
+ack(m=10, n=3, SP=0x2001fef4)
+ack(m=10, n=2, SP=0x2001bed4)
+ack(m=10, n=1, SP=0x20017eb4)
+ack(m=10, n=0, SP=0x20013e94)
+ack(m=9, n=1, SP=0x2000fe74)
+ack(m=9, n=0, SP=0x2000be54)
+ack(m=8, n=1, SP=0x20007e34)
+ack(m=8, n=0, SP=0x20003e14)
 ────────────────────────────────────────────────────────────────────────────────
 (HOST) WARN  program has used at least 240.62/254.93 KiB (94.4%) of stack space
+(HOST) WARN  data segments might be corrupted due to stack overflow
 stack backtrace:
    0: HardFaultTrampoline
       <exception entry>
