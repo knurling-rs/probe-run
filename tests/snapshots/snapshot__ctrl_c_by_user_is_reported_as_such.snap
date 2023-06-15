@@ -1,6 +1,6 @@
 ---
 source: tests/snapshot.rs
-assertion_line: 123
+assertion_line: 124
 expression: run_result.output
 
 ---
@@ -10,9 +10,9 @@ expression: run_result.output
 ────────────────────────────────────────────────────────────────────────────────
 stack backtrace:
    0: silent_loop::__cortex_m_rt_main
-        at /tmp/app/src/bin/silent-loop.rs:9:5
+        at /test_elfs/src/bin/silent-loop.rs:9:5
    1: main
-        at /tmp/app/src/bin/silent-loop.rs:6:1
+        at /test_elfs/src/bin/silent-loop.rs:6:1
    2: Reset
 (HOST) INFO  device halted by user
 
