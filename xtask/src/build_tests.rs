@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{env, process::Command};
 
 const PATH: &str = "tests/test_elfs";
 
@@ -41,6 +41,15 @@ fn cargo_build(target: &str, no_flip_link: bool) {
 
     let mut rustflags =
         "-C link-arg=-Tlink.x -C link-arg=-Tdefmt.x -C link-arg=--nmagic".to_string();
+
+    // remap the path
+    let repo_dir = env::current_dir().unwrap();
+    rustflags += &format!(
+        " --remap-path-prefix {}/{PATH}=/test_elfs",
+        repo_dir.display()
+    );
+
+    // set flip-link as linker, e
     if !no_flip_link {
         rustflags += " -C linker=flip-link";
     }
