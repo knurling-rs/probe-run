@@ -4,13 +4,13 @@ const PATH: &str = "tests/test_elfs";
 
 /// Build the various test elfs and copy them to the cache
 pub fn run() {
-    all_rzcobs();
+    all_bins_rzcobs();
     hello_raw();
     overflow_no_flip_link();
 }
 
-fn all_rzcobs() {
-    cargo_build("--bins", false);
+fn all_bins_rzcobs() {
+    cargo_build("--bins", true);
 
     for name in ["hello", "overflow", "panic", "silent-loop"] {
         copy(name, &format!("{name}-rzcobs"))
@@ -21,7 +21,7 @@ fn hello_raw() {
     // activate feature `encoding-raw` of `defmt`
     run_cmd("cargo add defmt --features encoding-raw", "");
 
-    cargo_build("--bin hello", false);
+    cargo_build("--bin hello", true);
 
     // deactivate feature `encoding-raw` of `defmt`
     run_cmd("git checkout HEAD -- Cargo.toml", "");
@@ -30,12 +30,12 @@ fn hello_raw() {
 }
 
 fn overflow_no_flip_link() {
-    cargo_build("--bin overflow", true);
+    cargo_build("--bin overflow", false);
 
     copy("overflow", "overflow-no-flip-link");
 }
 
-fn cargo_build(target: &str, no_flip_link: bool) {
+fn cargo_build(target: &str, flip_link: bool) {
     let mut args = "cargo build --release --target thumbv7em-none-eabihf ".to_string();
     args.push_str(target);
 
@@ -49,12 +49,19 @@ fn cargo_build(target: &str, no_flip_link: bool) {
         repo_dir.display()
     );
 
-    // set flip-link as linker, e
-    if !no_flip_link {
+    if flip_link {
+        // set flip-link as linker
         rustflags += " -C linker=flip-link";
     }
 
     run_cmd(&args, &rustflags);
+}
+
+fn copy(old_name: &str, new_name: &str) {
+    run_cmd(
+        &format!("cp ../../target/thumbv7em-none-eabihf/release/{old_name} cache/{new_name}"),
+        "",
+    );
 }
 
 fn run_cmd(command: &str, rustflags: &str) {
@@ -70,11 +77,4 @@ fn run_cmd(command: &str, rustflags: &str) {
     if !success {
         panic!("command failed: {command}");
     }
-}
-
-fn copy(old_name: &str, new_name: &str) {
-    run_cmd(
-        &format!("cp ../../target/thumbv7em-none-eabihf/release/{old_name} cache/{new_name}"),
-        "",
-    );
 }
