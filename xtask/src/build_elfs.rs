@@ -1,4 +1,4 @@
-use std::{env, process::Command};
+use std::{env, fs, process::Command};
 
 const PATH: &str = "tests/test_elfs";
 
@@ -18,13 +18,18 @@ fn all_bins_rzcobs() {
 }
 
 fn hello_raw() {
+    // save state of Cargo.toml, so we can restore it later
+    let cargo_toml = format!("{PATH}/Cargo.toml");
+    let before = fs::read(&cargo_toml).unwrap();
+
     // activate feature `encoding-raw` of `defmt`
     run_cmd("cargo add defmt --features encoding-raw", "");
 
+    // build the binary
     cargo_build("--bin hello", true);
 
-    // deactivate feature `encoding-raw` of `defmt`
-    run_cmd("git checkout HEAD -- Cargo.toml", "");
+    // restore Cargo.toml
+    fs::write(cargo_toml, before).unwrap();
 
     copy("hello", "hello-raw");
 }
@@ -57,6 +62,7 @@ fn cargo_build(target: &str, flip_link: bool) {
     run_cmd(&args, &rustflags);
 }
 
+/// Copy the binary from the `target/` dir to the cache
 fn copy(old_name: &str, new_name: &str) {
     run_cmd(
         &format!("cp ../../target/thumbv7em-none-eabihf/release/{old_name} cache/{new_name}"),
