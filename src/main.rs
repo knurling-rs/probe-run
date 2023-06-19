@@ -78,19 +78,19 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
 
     // run program and print logs until there is an exception
     start_program(core, elf)?;
-    let current_dir = &env::current_dir()?;
-    let halted_due_to_signal = print_logs(core, current_dir, elf, &target_info.memory_map, opts)?; // blocks until exception
+    let current_dir = env::current_dir()?;
+    let halted_due_to_signal = print_logs(core, &current_dir, elf, &target_info.memory_map, opts)?; // blocks until exception
     print_separator()?;
 
     // analyze stack canary
-    let canary_touched = canary
+    let stack_overflow = canary
         .map(|canary| canary.touched(core, elf))
         .transpose()?
         .unwrap_or(false);
 
     // print the backtrace
     let mut backtrace_settings =
-        backtrace::Settings::new(canary_touched, current_dir, halted_due_to_signal, opts);
+        backtrace::Settings::new(current_dir, halted_due_to_signal, opts, stack_overflow);
     let outcome = backtrace::print(core, elf, &target_info, &mut backtrace_settings)?;
 
     // reset the target
