@@ -107,17 +107,19 @@ pub fn handle_arguments() -> anyhow::Result<i32> {
     let opts = Opts::parse();
     let verbose = opts.verbose;
 
-    defmt_decoder::log::init_logger(verbose >= 1, opts.json, move |metadata| {
+    defmt_decoder::log::init_logger(verbose >= 1, verbose >= 2, opts.json, move |metadata| {
         if defmt_decoder::log::is_defmt_frame(metadata) {
             true // We want to display *all* defmt frames.
         } else {
             // Log depending on how often the `--verbose` (`-v`) cli-param is supplied:
-            //   * 0: log everything from probe-run, with level "info" or higher
-            //   * 1: log everything from probe-run
-            //   * 2 or more: log everything
+            //   * 0 to 1: log everything from probe-run, with level "info" or higher
+            //   * 2: log everything from probe-run
+            //   * 3 or more: log everything
             match verbose {
-                0 => metadata.target().starts_with("probe_run") && metadata.level() <= Level::Info,
-                1 => metadata.target().starts_with("probe_run"),
+                0..=1 => {
+                    metadata.target().starts_with("probe_run") && metadata.level() <= Level::Info
+                }
+                2 => metadata.target().starts_with("probe_run"),
                 _ => true,
             }
         }
