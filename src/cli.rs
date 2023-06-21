@@ -60,7 +60,7 @@ pub struct Opts {
     list_probes: bool,
 
     /// Whether to measure the program's stack consumption.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "no-reset")]
     pub measure_stack: bool,
 
     /// Skip writing the application binary to flash.
@@ -74,6 +74,10 @@ pub struct Opts {
     /// The probe to use (eg. `VID:PID`, `VID:PID:Serial`, or just `Serial`).
     #[arg(long, env = "PROBE_RUN_PROBE")]
     pub probe: Option<String>,
+
+    /// Whether to reset the target when attaching and detaching. Implies `--no-flash`.
+    #[arg(long = "no-reset", default_value = "true", action = ArgAction::SetFalse)]
+    pub reset: bool,
 
     /// Whether to shorten paths (e.g. to crates.io dependencies) in backtraces and defmt logs
     #[arg(long)]
