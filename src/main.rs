@@ -34,12 +34,7 @@ use probe_rs::{
 };
 use signal_hook::consts::signal;
 
-use crate::{
-    canary::Canary,
-    elf::Elf,
-    registers::{PC, SP},
-    target_info::TargetInfo,
-};
+use crate::{canary::Canary, elf::Elf, target_info::TargetInfo};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -208,9 +203,9 @@ fn flashing_progress() -> flashing::FlashProgress {
 ///
 /// Returns `(stack_start: u32, reset_fn_address: u32)`
 fn analyze_vector_table(core: &mut Core) -> anyhow::Result<(u32, u32)> {
-    let stack_start = core.read_core_reg::<u32>(SP)?;
-    let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
-    Ok((stack_start, reset_address))
+    let mut ivt = [0; 2];
+    core.read_32(0, &mut ivt[..])?;
+    Ok((ivt[0], ivt[1]))
 }
 
 fn start_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
