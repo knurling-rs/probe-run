@@ -103,6 +103,15 @@ pub fn target(core: &mut Core, elf: &Elf, target_info: &TargetInfo) -> Output {
             // the stack was not corrupted.
             let reset_fn_range = elf.reset_fn_range();
             output.corrupted = !(reset_fn_range.contains(&pc) || reset_fn_range.is_empty());
+            if output.corrupted {
+                log::debug!(
+                    "Frame (PC {:#010x}) is not within reset vector ({:#010x}..{:#010x}) \
+                             and links to itself, the stack is corrupted",
+                    pc,
+                    reset_fn_range.start,
+                    reset_fn_range.end
+                );
+            }
             break;
         }
 
@@ -125,6 +134,7 @@ pub fn target(core: &mut Core, elf: &Elf, target_info: &TargetInfo) -> Output {
             {
                 stacked
             } else {
+                log::debug!("Unreadable stacked exception registers, the stack is corrupted");
                 output.corrupted = true;
                 break;
             };
@@ -143,9 +153,14 @@ pub fn target(core: &mut Core, elf: &Elf, target_info: &TargetInfo) -> Output {
             break;
         }
 
-        // if the SP is above the start of the stack, the stack is corrupt
         match registers.get(registers::SP) {
             Ok(advanced_sp) if advanced_sp > target_info.stack_start => {
+                log::debug!(
+                    "SP ({:#010x}) above start of the stack ({:#010x}), the stack \
+                             is corrupted",
+                    advanced_sp,
+                    target_info.stack_start
+                );
                 output.corrupted = true;
                 break;
             }
