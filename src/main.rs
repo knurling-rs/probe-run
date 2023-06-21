@@ -60,10 +60,9 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     core.reset_and_halt(TIMEOUT)?;
 
     // gather information
-    let (stack_start, reset_fn_address) = analyze_vector_table(core)?;
     let elf_bytes = fs::read(elf_path)?;
-    let elf = &Elf::parse(&elf_bytes, elf_path, reset_fn_address)?;
-    let target_info = TargetInfo::new(elf, memory_map, probe_target, stack_start)?;
+    let elf = &Elf::parse(&elf_bytes, elf_path)?;
+    let target_info = TargetInfo::new(elf, memory_map, probe_target)?;
 
     // install stack canary
     let canary = Canary::install(core, &target_info, elf, opts.measure_stack)?;
@@ -195,17 +194,6 @@ fn flashing_progress() -> flashing::FlashProgress {
             _ => { /* Ignore other events */ }
         }
     })
-}
-
-/// Read stack-pointer and reset-handler-address from the vector table.
-///
-/// Assumes that the target was reset-halted.
-///
-/// Returns `(stack_start: u32, reset_fn_address: u32)`
-fn analyze_vector_table(core: &mut Core) -> anyhow::Result<(u32, u32)> {
-    let mut ivt = [0; 2];
-    core.read_32(0, &mut ivt[..])?;
-    Ok((ivt[0], ivt[1]))
 }
 
 fn start_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {

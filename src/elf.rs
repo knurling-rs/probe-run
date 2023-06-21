@@ -27,11 +27,7 @@ pub struct Elf<'file> {
 }
 
 impl<'file> Elf<'file> {
-    pub fn parse(
-        elf_bytes: &'file [u8],
-        elf_path: &'file Path,
-        reset_fn_address: u32,
-    ) -> Result<Self, anyhow::Error> {
+    pub fn parse(elf_bytes: &'file [u8], elf_path: &'file Path) -> Result<Self, anyhow::Error> {
         let elf = ObjectFile::parse(elf_bytes)?;
 
         let live_functions = extract_live_functions(&elf)?;
@@ -42,7 +38,7 @@ impl<'file> Elf<'file> {
 
         let debug_frame = extract_debug_frame(&elf)?;
 
-        let symbols = extract_symbols(&elf, reset_fn_address)?;
+        let symbols = extract_symbols(&elf, vector_table.reset)?;
 
         Ok(Self {
             elf,
@@ -149,11 +145,12 @@ fn extract_vector_table(elf: &ObjectFile) -> anyhow::Result<cortexm::VectorTable
         .chunks_exact(4)
         .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()));
 
-    if let (Some(initial_stack_pointer), Some(_reset), Some(_third), Some(hard_fault)) =
+    if let (Some(initial_stack_pointer), Some(reset), Some(_third), Some(hard_fault)) =
         (words.next(), words.next(), words.next(), words.next())
     {
         Ok(cortexm::VectorTable {
             initial_stack_pointer,
+            reset,
             hard_fault,
         })
     } else {
