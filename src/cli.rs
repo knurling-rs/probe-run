@@ -124,7 +124,7 @@ pub fn handle_arguments() -> anyhow::Result<i32> {
     });
 
     if opts.measure_stack {
-        log::warn!("use of deprecated option `--measure-stack`: Has no effect anymore and will vanish on next minor release")
+        log::warn!("use of deprecated option `--measure-stack`: Has no effect and will vanish on next breaking release")
     }
 
     if opts.version {
