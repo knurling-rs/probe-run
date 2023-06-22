@@ -105,11 +105,8 @@ pub fn target(core: &mut Core, elf: &Elf, target_info: &TargetInfo) -> Output {
             output.corrupted = !(reset_fn_range.contains(&pc) || reset_fn_range.is_empty());
             if output.corrupted {
                 log::debug!(
-                    "Frame (PC {:#010x}) is not within reset vector ({:#010x}..{:#010x}) \
-                             and links to itself, the stack is corrupted",
-                    pc,
-                    reset_fn_range.start,
-                    reset_fn_range.end
+                    "Frame (PC {pc:#010x}) is not within reset vector ({reset_fn_range:#010x?}) \
+                            and links to itself, the stack is corrupted",
                 );
             }
             break;
@@ -156,9 +153,8 @@ pub fn target(core: &mut Core, elf: &Elf, target_info: &TargetInfo) -> Output {
         match registers.get(registers::SP) {
             Ok(advanced_sp) if advanced_sp > target_info.stack_start => {
                 log::debug!(
-                    "SP ({:#010x}) above start of the stack ({:#010x}), the stack \
-                             is corrupted",
-                    advanced_sp,
+                    "SP ({advanced_sp:#010x}) above start of the stack ({:#010x}), \
+                             the stack is corrupted",
                     target_info.stack_start
                 );
                 output.corrupted = true;

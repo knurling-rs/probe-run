@@ -59,32 +59,27 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
 
     // reset if requested, and then halt the core; this is necessary for analyzing
     // the vector table and painting the stack
-    if opts.reset {
-        core.reset_and_halt(TIMEOUT)?;
-    } else {
-        core.halt(TIMEOUT)?;
-    }
+    match opts.no_reset {
+        false => core.reset_and_halt(TIMEOUT),
+        true => core.halt(TIMEOUT),
+    }?;
 
     // gather information
     let elf_bytes = fs::read(elf_path)?;
     let elf = &Elf::parse(&elf_bytes, elf_path)?;
     let target_info = TargetInfo::new(elf, memory_map, probe_target)?;
 
-    let canary;
-    if opts.reset {
-        // install stack canary
-        canary = Canary::install(core, &target_info, elf, opts.measure_stack)?;
-        if opts.measure_stack && canary.is_none() {
-            bail!("failed to set up stack measurement");
-        }
-    } else {
-        // cannot safely touch the stack of a running application
-        canary = None;
-        log::warn!("You are using `--no-reset` -- stack overflow checks will not be done")
+    // install stack canary
+    let canary = match opts.no_reset {
+        true => None, // cannot safely touch the stack of a running application
+        false => Canary::install(core, &target_info, elf, true)?,
+    };
+    if canary.is_none() {
+        log::info!("stack measurement was not set up");
     }
 
     // run program and print logs until there is an exception
-    attach_to_program(core, elf)?;
+    attack_the_program(core, elf)?;
     let current_dir = &env::current_dir()?;
     let halted_due_to_signal = print_logs(core, current_dir, elf, &target_info.memory_map, opts)?; // blocks until exception
     print_separator()?;
@@ -100,7 +95,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         backtrace::Settings::new(canary_touched, current_dir, halted_due_to_signal, opts);
     let outcome = backtrace::print(core, elf, &target_info, &mut backtrace_settings)?;
 
-    if opts.reset {
+    if !opts.no_reset {
         // reset the target
         core.reset_and_halt(TIMEOUT)?;
     } else {
@@ -214,7 +209,7 @@ fn flashing_progress() -> flashing::FlashProgress {
     })
 }
 
-fn attach_to_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
+fn attack_the_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
     log::debug!("attaching to program");
 
     match (core.available_breakpoint_units()?, elf.rtt_buffer_address()) {
@@ -250,14 +245,12 @@ fn set_rtt_blocking_mode(
     rtt_buffer_address: u32,
     is_blocking: bool,
 ) -> anyhow::Result<()> {
-    log::debug!(
-        "setting RTT mode to {}",
-        if is_blocking {
-            "blocking"
-        } else {
-            "nonblocking"
-        }
-    );
+    let (mode_name, mode) = match is_blocking {
+        true => ("blocking", MODE_BLOCK_IF_FULL),
+        false => ("nonblocking", MODE_NON_BLOCKING_TRIM),
+    };
+
+    log::debug!("setting RTT mode to {mode_name}");
 
     // calculate address of up-channel-flags inside the rtt control block
     const OFFSET: u32 = 44;
@@ -270,12 +263,7 @@ fn set_rtt_blocking_mode(
     const MODE_MASK: u32 = 0b11;
     const MODE_NON_BLOCKING_TRIM: u32 = 0b01;
     const MODE_BLOCK_IF_FULL: u32 = 0b10;
-    let modified_channel_flags = (channel_flags[0] & !MODE_MASK)
-        | if is_blocking {
-            MODE_BLOCK_IF_FULL
-        } else {
-            MODE_NON_BLOCKING_TRIM
-        };
+    let modified_channel_flags = (channel_flags[0] & !MODE_MASK) | mode;
     // write flags back
     core.write_word_32(rtt_buffer_address.into(), modified_channel_flags)?;
 
@@ -305,8 +293,13 @@ fn print_logs(
 
     if use_defmt && (!opts.reset || opts.no_flash) {
         log::warn!(
-            "You are using `{}` and `defmt` logging -- this combination can lead to malformed defmt data!",
-            if !opts.reset { "--no-reset" } else { "--no-flash" }
+            "You are using `{}` together with `defmt` logging -- this combination can lead to malformed defmt data!",
+            match (opts.no_flash, opts.no_reset) {
+                (true, true) => "--no-flash and --no-reset",
+                (true, false) => "--no-flash",
+                (false, true) => "--no-reset",
+                (false, false) => unreachable!(),
+            }
         );
     } else if use_defmt && elf.defmt_table.is_none() {
         bail!("\"defmt\" RTT channel is in use, but the firmware binary contains no defmt data");

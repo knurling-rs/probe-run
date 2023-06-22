@@ -60,7 +60,7 @@ pub struct Opts {
     list_probes: bool,
 
     /// Whether to measure the program's stack consumption.
-    #[arg(long, conflicts_with = "no-reset")]
+    #[arg(long)]
     pub measure_stack: bool,
 
     /// Skip writing the application binary to flash.
@@ -76,8 +76,8 @@ pub struct Opts {
     pub probe: Option<String>,
 
     /// Whether to reset the target when attaching and detaching. Implies `--no-flash`.
-    #[arg(long = "no-reset", default_value = "true", action = ArgAction::SetFalse)]
-    pub reset: bool,
+    #[arg(long)]
+    pub no_reset: bool,
 
     /// Whether to shorten paths (e.g. to crates.io dependencies) in backtraces and defmt logs
     #[arg(long)]
