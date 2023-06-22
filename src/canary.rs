@@ -404,7 +404,7 @@ mod measure_subroutine {
 ///
 /// # How?
 ///
-/// We place the parameters in the registers (see table below), place the subroutien
+/// We place the parameters in the registers (see table below), place the subroutine
 /// in memory, set the program counter to the beginning of the subroutine, execute
 /// the subroutine and reset the program counter afterwards.
 ///
