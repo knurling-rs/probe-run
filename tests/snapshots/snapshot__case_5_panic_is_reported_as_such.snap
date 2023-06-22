@@ -1,6 +1,6 @@
 ---
 source: tests/snapshot.rs
-assertion_line: 113
+assertion_line: 114
 expression: run_result.output
 
 ---
@@ -9,6 +9,7 @@ expression: run_result.output
 ────────────────────────────────────────────────────────────────────────────────
 ERROR panicked at 'explicit panic'
 ────────────────────────────────────────────────────────────────────────────────
+(HOST) INFO  program has used at least 0.16/254.93 KiB (0.1%) of stack space
 stack backtrace:
    0: HardFaultTrampoline
       <exception entry>
