@@ -110,7 +110,7 @@ const HELPER_CMDS: [&str; 3] = ["list_chips", "list_probes", "version"];
 pub fn handle_arguments() -> anyhow::Result<i32> {
     let opts = Opts::parse();
     let verbose = opts.verbose;
-    let log_format = opts.log_format.as_ref().map(|s| s.as_str());
+    let log_format = opts.log_format.as_deref();
 
     defmt_decoder::log::init_logger(log_format, opts.json, move |metadata| {
         if defmt_decoder::log::is_defmt_frame(metadata) {
