@@ -59,6 +59,10 @@ pub struct Opts {
     #[arg(long)]
     list_probes: bool,
 
+    /// Applies the given format to the log output.
+    #[arg(long)]
+    pub log_format: Option<String>,
+
     /// Whether to measure the program's stack consumption.
     #[arg(long)]
     pub measure_stack: bool,
@@ -106,8 +110,9 @@ const HELPER_CMDS: [&str; 3] = ["list_chips", "list_probes", "version"];
 pub fn handle_arguments() -> anyhow::Result<i32> {
     let opts = Opts::parse();
     let verbose = opts.verbose;
+    let log_format = opts.log_format.as_ref().map(|s| s.as_str());
 
-    defmt_decoder::log::init_logger(verbose >= 1, opts.json, move |metadata| {
+    defmt_decoder::log::init_logger(log_format, opts.json, move |metadata| {
         if defmt_decoder::log::is_defmt_frame(metadata) {
             true // We want to display *all* defmt frames.
         } else {
