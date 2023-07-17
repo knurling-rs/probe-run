@@ -63,6 +63,10 @@ pub struct Opts {
     #[arg(long)]
     pub log_format: Option<String>,
 
+    /// Applies the given format to the host log output.
+    #[arg(long)]
+    pub host_log_format: Option<String>,
+
     /// Whether to measure the program's stack consumption.
     #[arg(long)]
     pub measure_stack: bool,
@@ -110,9 +114,26 @@ const HELPER_CMDS: [&str; 3] = ["list_chips", "list_probes", "version"];
 pub fn handle_arguments() -> anyhow::Result<i32> {
     let opts = Opts::parse();
     let verbose = opts.verbose;
-    let log_format = opts.log_format.as_deref();
+    let mut log_format = opts.log_format.as_deref();
+    let mut host_log_format = opts.host_log_format.as_deref();
 
-    defmt_decoder::log::init_logger(log_format, opts.json, move |metadata| {
+    const DEFAULT_LOG_FORMAT: &str = "{t} {L} {s}\n└─ {m} @ {F}:{l}";
+    const DEFAULT_HOST_LOG_FORMAT: &str = "(HOST) {L} {s}";
+    const DEFAULT_VERBOSE_HOST_LOG_FORMAT: &str = "(HOST) {L} {s}\n└─ {m} @ {F}:{l}";
+
+    if log_format.is_none() {
+        log_format = Some(DEFAULT_LOG_FORMAT);
+    }
+
+    if host_log_format.is_none() {
+        if verbose == 0 {
+            host_log_format = Some(DEFAULT_HOST_LOG_FORMAT);
+        } else {
+            host_log_format = Some(DEFAULT_VERBOSE_HOST_LOG_FORMAT);
+        }
+    }
+
+    defmt_decoder::log::init_logger(log_format, host_log_format, opts.json, move |metadata| {
         if defmt_decoder::log::is_defmt_frame(metadata) {
             true // We want to display *all* defmt frames.
         } else {
