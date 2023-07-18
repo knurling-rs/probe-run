@@ -1,33 +1,34 @@
 ---
 source: tests/snapshot.rs
-assertion_line: 113
+assertion_line: 114
 expression: run_result.output
 
 ---
+(HOST) DEBUG found 1 probes
+(HOST) DEBUG opened probe
+(HOST) DEBUG started session
+(HOST) INFO  flashing program (2 pages / 8.00 KiB)
+(HOST) DEBUG Erased sector of size 4096 bytes in 122 ms
+(HOST) DEBUG Erased sector of size 4096 bytes in 101 ms
+(HOST) DEBUG Programmed page of size 4096 bytes in 66 ms
+(HOST) DEBUG Programmed page of size 4096 bytes in 67 ms
+(HOST) INFO  success!
 (HOST) DEBUG vector table: VectorTable { initial_stack_pointer: 2003fbc0, hard_fault: 17d3 }
 (HOST) DEBUG RAM region: 0x20000000-0x2003FFFF
 (HOST) DEBUG section `.data` is in RAM at 0x2003FBC0..=0x2003FBF7
 (HOST) DEBUG section `.bss` is in RAM at 0x2003FBF8..=0x2003FBFF
 (HOST) DEBUG section `.uninit` is in RAM at 0x2003FC00..=0x2003FFFF
 (HOST) DEBUG valid SP range: 0x20000000..=0x2003FBBC
-(HOST) DEBUG found 1 probes
-(HOST) DEBUG opened probe
-(HOST) DEBUG started session
-(HOST) INFO  flashing program (2 pages / 8.00 KiB)
-(HOST) DEBUG Erased sector of size 4096 bytes in 121 ms
-(HOST) DEBUG Erased sector of size 4096 bytes in 99 ms
-(HOST) DEBUG Programmed page of size 4096 bytes in 62 ms
-(HOST) DEBUG Programmed page of size 4096 bytes in 62 ms
-(HOST) INFO  success!
-(HOST) DEBUG 261052 bytes of stack available (0x20000000 ..= 0x2003FBBC), using 1024 byte canary
-(HOST) TRACE setting up canary took 0.020s (51.19 KiB/s)
+(HOST) DEBUG 261052 bytes of stack available (0x20000000 ..= 0x2003FBBC)
+(HOST) DEBUG painting 254.93 KiB of RAM took 0.031s (8287.09 KiB/s)
 (HOST) DEBUG starting device
 (HOST) DEBUG Successfully attached RTT
 ────────────────────────────────────────────────────────────────────────────────
 ERROR panicked at 'explicit panic'
 ────────────────────────────────────────────────────────────────────────────────
-(HOST) TRACE reading canary took 0.024s (41.48 KiB/s)
-(HOST) DEBUG stack canary intact
+(HOST) DEBUG reading 254.93 KiB of RAM took 0.048s (5308.39 KiB/s)
+(HOST) DEBUG stack was touched at 0x2003FB20
+(HOST) INFO  program has used at least 0.16/254.93 KiB (0.1%) of stack space
 (HOST) TRACE 0x000017d2: found FDE for 0x000017d2 .. 0x000017ea at offset 5672
 (HOST) TRACE uwt row for pc 0x000017d2: UnwindTableRow { start_address: 6098, end_address: 6122, saved_args_size: 0, cfa: RegisterAndOffset { register: Register(13), offset: 0 }, registers: RegisterRuleMap { rules: [] } }
 (HOST) DEBUG LR=0xFFFFFFF9 PC=0x000017D2

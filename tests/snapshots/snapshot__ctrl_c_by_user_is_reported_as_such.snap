@@ -1,6 +1,6 @@
 ---
 source: tests/snapshot.rs
-assertion_line: 123
+assertion_line: 124
 expression: run_result.output
 
 ---
@@ -8,6 +8,7 @@ expression: run_result.output
 (HOST) INFO  success!
 ────────────────────────────────────────────────────────────────────────────────
 ────────────────────────────────────────────────────────────────────────────────
+(HOST) INFO  program has used at least 0.13/254.93 KiB (0.1%) of stack space
 stack backtrace:
    0: silent_loop::__cortex_m_rt_main
         at /tmp/app/src/bin/silent-loop.rs:9:5
