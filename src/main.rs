@@ -81,7 +81,7 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     // run program and print logs until there is an exception
     attack_the_program(core, elf)?;
     let current_dir = env::current_dir()?;
-    let halted_due_to_signal = print_logs(core, current_dir, elf, &target_info.memory_map, opts)?; // blocks until exception
+    let halted_due_to_signal = print_logs(core, &current_dir, elf, &target_info.memory_map, opts)?; // blocks until exception
     print_separator()?;
 
     // analyze stack canary
