@@ -129,7 +129,7 @@ impl Outcome {
             Outcome::StackOverflow => log::error!("the program has overflowed its stack"),
             Outcome::HardFault => log::error!("the program panicked"),
             Outcome::Ok => log::info!("device halted without error"),
-            Outcome::CtrlC => log::info!("device halted by user"),
+            Outcome::CtrlC => log::info!("interrupted by user"),
         }
     }
 }

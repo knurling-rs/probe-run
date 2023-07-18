@@ -34,12 +34,7 @@ use probe_rs::{
 };
 use signal_hook::consts::signal;
 
-use crate::{
-    canary::Canary,
-    elf::Elf,
-    registers::{PC, SP},
-    target_info::TargetInfo,
-};
+use crate::{canary::Canary, elf::Elf, target_info::TargetInfo};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -54,30 +49,37 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     // connect to probe and flash firmware
     let probe_target = lookup_probe_target(elf_path, chip_name, opts)?;
     let mut sess = attach_to_probe(probe_target.clone(), opts)?;
-    flash(&mut sess, elf_path, opts)?;
+    if opts.reset {
+        flash(&mut sess, elf_path, opts)?;
+    }
 
-    // attack to core
+    // attach to core
     let memory_map = sess.target().memory_map.clone();
     let core = &mut sess.core(0)?;
 
-    // reset-halt the core; this is necessary for analyzing the vector table and
-    // painting the stack
-    core.reset_and_halt(TIMEOUT)?;
+    // reset if requested, and then halt the core; this is necessary for analyzing
+    // the vector table and painting the stack
+    match opts.no_reset {
+        false => core.reset_and_halt(TIMEOUT),
+        true => core.halt(TIMEOUT),
+    }?;
 
     // gather information
-    let (stack_start, reset_fn_address) = analyze_vector_table(core)?;
     let elf_bytes = fs::read(elf_path)?;
-    let elf = &Elf::parse(&elf_bytes, elf_path, reset_fn_address)?;
-    let target_info = TargetInfo::new(elf, memory_map, probe_target, stack_start)?;
+    let elf = &Elf::parse(&elf_bytes, elf_path)?;
+    let target_info = TargetInfo::new(elf, memory_map, probe_target)?;
 
     // install stack canary
-    let canary = Canary::install(core, elf, &target_info)?;
+    let canary = match opts.no_reset {
+        true => None, // cannot safely touch the stack of a running application
+        false => Canary::install(core, elf, &target_info)?,
+    };
     if canary.is_none() {
         log::info!("stack measurement was not set up");
     }
 
     // run program and print logs until there is an exception
-    start_program(core, elf)?;
+    attack_the_program(core, elf)?;
     let current_dir = env::current_dir()?;
     let halted_due_to_signal = print_logs(core, &current_dir, elf, &target_info.memory_map, opts)?; // blocks until exception
     print_separator()?;
@@ -93,8 +95,13 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         backtrace::Settings::new(current_dir, halted_due_to_signal, opts, stack_overflow);
     let outcome = backtrace::print(core, elf, &target_info, &mut backtrace_settings)?;
 
-    // reset the target
-    core.reset_and_halt(TIMEOUT)?;
+    if !opts.no_reset {
+        // reset the target
+        core.reset_and_halt(TIMEOUT)?;
+    } else {
+        // remove our instrumentation and restart the target
+        detach_from_program(core, elf)?;
+    }
 
     outcome.log();
     Ok(outcome.into())
@@ -202,24 +209,14 @@ fn flashing_progress() -> flashing::FlashProgress {
     })
 }
 
-/// Read stack-pointer and reset-handler-address from the vector table.
-///
-/// Assumes that the target was reset-halted.
-///
-/// Returns `(stack_start: u32, reset_fn_address: u32)`
-fn analyze_vector_table(core: &mut Core) -> anyhow::Result<(u32, u32)> {
-    let stack_start = core.read_core_reg::<u32>(SP)?;
-    let reset_address = cortexm::set_thumb_bit(core.read_core_reg::<u32>(PC)?);
-    Ok((stack_start, reset_address))
-}
-
-fn start_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
-    log::debug!("starting device");
+fn attack_the_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
+    log::debug!("attaching to program");
 
     match (core.available_breakpoint_units()?, elf.rtt_buffer_address()) {
         (0, Some(_)) => bail!("RTT not supported on device without HW breakpoints"),
         (0, None) => log::warn!("device doesn't support HW breakpoints; HardFault will NOT make `probe-run` exit with an error code"),
-        (_, Some(rtt_buffer_address)) => set_rtt_to_blocking(core, elf.main_fn_address(), rtt_buffer_address)?,
+        (_, Some(rtt_buffer_address)) =>
+            set_rtt_blocking_mode(core, rtt_buffer_address, true)?,
         (_, None) => {}
     }
 
@@ -229,16 +226,31 @@ fn start_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Set rtt to blocking mode
-fn set_rtt_to_blocking(
-    core: &mut Core,
-    main_fn_address: u32,
-    rtt_buffer_address: u32,
-) -> anyhow::Result<()> {
-    // set and wait for a hardware breakpoint at the beginning of `fn main()`
-    core.set_hw_breakpoint(main_fn_address.into())?;
+fn detach_from_program(core: &mut Core, elf: &Elf) -> anyhow::Result<()> {
+    log::debug!("detaching from program");
+
+    if let Some(rtt_buffer_address) = elf.rtt_buffer_address() {
+        set_rtt_blocking_mode(core, rtt_buffer_address, false)?;
+    }
+
+    core.clear_hw_breakpoint(cortexm::clear_thumb_bit(elf.vector_table.hard_fault).into())?;
     core.run()?;
-    core.wait_for_core_halted(Duration::from_secs(5))?;
+
+    Ok(())
+}
+
+/// Set rtt to blocking mode
+fn set_rtt_blocking_mode(
+    core: &mut Core,
+    rtt_buffer_address: u32,
+    is_blocking: bool,
+) -> anyhow::Result<()> {
+    let (mode_name, mode) = match is_blocking {
+        true => ("blocking", MODE_BLOCK_IF_FULL),
+        false => ("nonblocking", MODE_NON_BLOCKING_TRIM),
+    };
+
+    log::debug!("setting RTT mode to {mode_name}");
 
     // calculate address of up-channel-flags inside the rtt control block
     const OFFSET: u32 = 44;
@@ -249,13 +261,11 @@ fn set_rtt_to_blocking(
     core.read_32(rtt_buffer_address.into(), channel_flags)?;
     // modify flags to blocking
     const MODE_MASK: u32 = 0b11;
+    const MODE_NON_BLOCKING_TRIM: u32 = 0b01;
     const MODE_BLOCK_IF_FULL: u32 = 0b10;
-    let modified_channel_flags = (channel_flags[0] & !MODE_MASK) | MODE_BLOCK_IF_FULL;
+    let modified_channel_flags = (channel_flags[0] & !MODE_MASK) | mode;
     // write flags back
     core.write_word_32(rtt_buffer_address.into(), modified_channel_flags)?;
-
-    // clear the breakpoint we set before
-    core.clear_hw_breakpoint(main_fn_address.into())?;
 
     Ok(())
 }
@@ -273,7 +283,7 @@ fn print_logs(
     let mut logging_channel = if let Some(address) = elf.rtt_buffer_address() {
         Some(setup_logging_channel(core, memory_map, address)?)
     } else {
-        eprintln!("RTT logs not available; blocking until the device halts..");
+        eprintln!("RTT logs not available; blocking until the device halts...");
         None
     };
 
@@ -281,9 +291,15 @@ fn print_logs(
         .as_ref()
         .map_or(false, |channel| channel.name() == Some("defmt"));
 
-    if use_defmt && opts.no_flash {
+    if use_defmt && (!opts.reset || opts.no_flash) {
         log::warn!(
-            "You are using `--no-flash` and `defmt` logging -- this combination can lead to malformed defmt data!"
+            "You are using `{}` together with `defmt` logging -- this combination can lead to malformed defmt data!",
+            match (opts.no_flash, opts.no_reset) {
+                (true, true) => "--no-flash and --no-reset",
+                (true, false) => "--no-flash",
+                (false, true) => "--no-reset",
+                (false, false) => unreachable!(),
+            }
         );
     } else if use_defmt && elf.defmt_table.is_none() {
         bail!("\"defmt\" RTT channel is in use, but the firmware binary contains no defmt data");

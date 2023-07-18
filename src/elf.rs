@@ -27,11 +27,7 @@ pub struct Elf<'file> {
 }
 
 impl<'file> Elf<'file> {
-    pub fn parse(
-        elf_bytes: &'file [u8],
-        elf_path: &'file Path,
-        reset_fn_address: u32,
-    ) -> Result<Self, anyhow::Error> {
+    pub fn parse(elf_bytes: &'file [u8], elf_path: &'file Path) -> Result<Self, anyhow::Error> {
         let elf = ObjectFile::parse(elf_bytes)?;
 
         let live_functions = extract_live_functions(&elf)?;
@@ -42,7 +38,7 @@ impl<'file> Elf<'file> {
 
         let debug_frame = extract_debug_frame(&elf)?;
 
-        let symbols = extract_symbols(&elf, reset_fn_address)?;
+        let symbols = extract_symbols(&elf, vector_table.reset)?;
 
         Ok(Self {
             elf,
@@ -54,10 +50,6 @@ impl<'file> Elf<'file> {
             live_functions,
             vector_table,
         })
-    }
-
-    pub fn main_fn_address(&self) -> u32 {
-        self.symbols.main_fn_address
     }
 
     pub fn program_uses_heap(&self) -> bool {
@@ -149,11 +141,12 @@ fn extract_vector_table(elf: &ObjectFile) -> anyhow::Result<cortexm::VectorTable
         .chunks_exact(4)
         .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()));
 
-    if let (Some(initial_stack_pointer), Some(_reset), Some(_third), Some(hard_fault)) =
+    if let (Some(initial_stack_pointer), Some(reset), Some(_third), Some(hard_fault)) =
         (words.next(), words.next(), words.next(), words.next())
     {
         Ok(cortexm::VectorTable {
             initial_stack_pointer,
+            reset,
             hard_fault,
         })
     } else {
@@ -179,14 +172,12 @@ fn extract_debug_frame<'file>(elf: &ObjectFile<'file>) -> anyhow::Result<DebugFr
 }
 
 struct Symbols {
-    main_fn_address: u32,
     program_uses_heap: bool,
     reset_fn_range: Range<u32>,
     rtt_buffer_address: Option<u32>,
 }
 
 fn extract_symbols(elf: &ObjectFile, reset_fn_address: u32) -> anyhow::Result<Symbols> {
-    let mut main_fn_address = None;
     let mut program_uses_heap = false;
     let mut reset_symbols = Vec::new();
     let mut rtt_buffer_address = None;
@@ -199,7 +190,6 @@ fn extract_symbols(elf: &ObjectFile, reset_fn_address: u32) -> anyhow::Result<Sy
 
         let address = symbol.address().try_into().expect("expected 32-bit ELF");
         match name {
-            "main" => main_fn_address = Some(cortexm::clear_thumb_bit(address)),
             "_SEGGER_RTT" => rtt_buffer_address = Some(address),
             "__rust_alloc" | "__rg_alloc" | "__rdl_alloc" | "malloc" if !program_uses_heap => {
                 log::debug!("symbol `{}` indicates heap is in use", name);
@@ -214,7 +204,6 @@ fn extract_symbols(elf: &ObjectFile, reset_fn_address: u32) -> anyhow::Result<Sy
         }
     }
 
-    let main_fn_address = main_fn_address.ok_or(anyhow!("`main` symbol not found"))?;
     let reset_fn_range = {
         if reset_symbols.len() == 1 {
             let reset = reset_symbols.remove(0);
@@ -229,7 +218,6 @@ fn extract_symbols(elf: &ObjectFile, reset_fn_address: u32) -> anyhow::Result<Sy
     };
 
     Ok(Symbols {
-        main_fn_address,
         program_uses_heap,
         reset_fn_range,
         rtt_buffer_address,

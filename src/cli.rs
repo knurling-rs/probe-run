@@ -75,6 +75,10 @@ pub struct Opts {
     #[arg(long, env = "PROBE_RUN_PROBE")]
     pub probe: Option<String>,
 
+    /// Whether to reset the target when attaching and detaching. Implies `--no-flash`.
+    #[arg(long)]
+    pub no_reset: bool,
+
     /// Whether to shorten paths (e.g. to crates.io dependencies) in backtraces and defmt logs
     #[arg(long)]
     pub shorten_paths: bool,

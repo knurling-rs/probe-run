@@ -46,8 +46,10 @@ pub fn subroutine_eq(addr1: u32, addr2: u32) -> bool {
 /// The contents of the vector table
 #[derive(Debug)]
 pub struct VectorTable {
-    // entry 0
+    // entry 0: Initial SP
     pub initial_stack_pointer: u32,
+    // entry 1: Reset vector
+    pub reset: u32,
     // entry 3: HardFault handler
     pub hard_fault: u32,
 }

@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+- [#414] Add `--no-reset` to attach to/detach from live target
 - [#410] Simplify canary
 - [#405] Also enable merge queue for changelog enforcer
 - [#404] Switch from bors to merge queue
