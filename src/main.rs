@@ -23,7 +23,7 @@ use std::{
 
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
-use defmt_decoder::{DecodeError, Frame, Locations, StreamDecoder};
+use defmt_decoder::{log::DefmtLoggerInfo, DecodeError, Frame, Locations, StreamDecoder};
 use probe_rs::{
     config::MemoryRegion,
     flashing::{self, Format},
@@ -50,7 +50,12 @@ fn main() -> anyhow::Result<()> {
     cli::handle_arguments().map(|code| process::exit(code))
 }
 
-fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> anyhow::Result<i32> {
+fn run_target_program(
+    elf_path: &Path,
+    chip_name: &str,
+    opts: &cli::Opts,
+    logger_info: DefmtLoggerInfo,
+) -> anyhow::Result<i32> {
     // connect to probe and flash firmware
     let probe_target = lookup_probe_target(elf_path, chip_name, opts)?;
     let mut sess = attach_to_probe(probe_target.clone(), opts)?;
@@ -69,6 +74,14 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
     let elf_bytes = fs::read(elf_path)?;
     let elf = &Elf::parse(&elf_bytes, elf_path, reset_fn_address)?;
     let target_info = TargetInfo::new(elf, memory_map, probe_target, stack_start)?;
+
+    if let Some(table) = &elf.defmt_table {
+        if logger_info.has_timestamp() && !table.has_timestamp() {
+            log::warn!(
+                "logger format contains timestamp but no timestamp implementation was provided"
+            );
+        }
+    }
 
     // install stack canary
     let canary = Canary::install(core, elf, &target_info)?;

@@ -133,21 +133,25 @@ pub fn handle_arguments() -> anyhow::Result<i32> {
         }
     }
 
-    defmt_decoder::log::init_logger(log_format, host_log_format, opts.json, move |metadata| {
-        if defmt_decoder::log::is_defmt_frame(metadata) {
-            true // We want to display *all* defmt frames.
-        } else {
-            // Log depending on how often the `--verbose` (`-v`) cli-param is supplied:
-            //   * 0: log everything from probe-run, with level "info" or higher
-            //   * 1: log everything from probe-run
-            //   * 2 or more: log everything
-            match verbose {
-                0 => metadata.target().starts_with("probe_run") && metadata.level() <= Level::Info,
-                1 => metadata.target().starts_with("probe_run"),
-                _ => true,
+    let logger_info =
+        defmt_decoder::log::init_logger(log_format, host_log_format, opts.json, move |metadata| {
+            if defmt_decoder::log::is_defmt_frame(metadata) {
+                true // We want to display *all* defmt frames.
+            } else {
+                // Log depending on how often the `--verbose` (`-v`) cli-param is supplied:
+                //   * 0: log everything from probe-run, with level "info" or higher
+                //   * 1: log everything from probe-run
+                //   * 2 or more: log everything
+                match verbose {
+                    0 => {
+                        metadata.target().starts_with("probe_run")
+                            && metadata.level() <= Level::Info
+                    }
+                    1 => metadata.target().starts_with("probe_run"),
+                    _ => true,
+                }
             }
-        }
-    });
+        });
 
     if opts.measure_stack {
         log::warn!("use of deprecated option `--measure-stack`: Has no effect and will vanish on next breaking release")
@@ -163,7 +167,7 @@ pub fn handle_arguments() -> anyhow::Result<i32> {
         print_chips();
         Ok(EXIT_SUCCESS)
     } else if let (Some(elf), Some(chip)) = (opts.elf.as_deref(), opts.chip.as_deref()) {
-        crate::run_target_program(elf, chip, &opts)
+        crate::run_target_program(elf, chip, &opts, logger_info)
     } else {
         unreachable!("due to `StructOpt` constraints")
     }
