@@ -82,6 +82,12 @@ fn run_target_program(
                 was provided; consider removing the timestamp `{{t}}` from the \
                 logger format  or provide a `defmt::timestamp!` implementation"
             );
+        } else if !logger_info.has_timestamp() && table.has_timestamp() {
+            log::warn!(
+                "`defmt::timestamp!` implementation was found, but timestamp is not \
+                part of the log format; consider adding the timestamp `{{t}}` \
+                argument to the log format"
+            );
         }
     }
 

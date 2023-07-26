@@ -117,7 +117,7 @@ pub fn handle_arguments() -> anyhow::Result<i32> {
     let mut log_format = opts.log_format.as_deref();
     let mut host_log_format = opts.host_log_format.as_deref();
 
-    const DEFAULT_LOG_FORMAT: &str = "{t} {L} {s}\n└─ {m} @ {F}:{l}";
+    const DEFAULT_LOG_FORMAT: &str = "{L} {s}\n└─ {m} @ {F}:{l}";
     const DEFAULT_HOST_LOG_FORMAT: &str = "(HOST) {L} {s}";
     const DEFAULT_VERBOSE_HOST_LOG_FORMAT: &str = "(HOST) {L} {s}\n└─ {m} @ {F}:{l}";
 
