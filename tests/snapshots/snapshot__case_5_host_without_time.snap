@@ -1,0 +1,20 @@
+---
+source: tests/snapshot.rs
+assertion_line: 143
+expression: run_result.output
+
+---
+[INFO ] Location<main.rs:203> flashing program (2 pages / 8.00 KiB)
+[INFO ] Location<main.rs:190> success!
+[WARN ] Location<main.rs:80> logger format contains timestamp but no timestamp implementation was provided; consider removing the timestamp `{t}` from the logger format  or provide a `defmt::timestamp!` implementation
+────────────────────────────────────────────────────────────────────────────────
+<time> INFO  info
+<time> TRACE trace
+<time> WARN  warn
+<time> DEBUG debug
+<time> ERROR error
+println
+────────────────────────────────────────────────────────────────────────────────
+[INFO ] Location<canary.rs:125> program has used at least 0.23/254.93 KiB (0.1%) of stack space
+[INFO ] Location<mod.rs:131> device halted without error
+

@@ -124,3 +124,21 @@ fn ctrl_c_by_user_is_reported_as_such() {
     assert!(!run_result.exit_status.success());
     insta::assert_snapshot!(run_result.output);
 }
+
+#[rstest]
+#[case::without_time(&["levels-rzcobs", "--log-format", "[{L}] Location<{f}:{l}> {s}"])]
+#[case::with_time(&["levels-with-timestamp", "--log-format", "{t} [{L}] Location<{f}:{l}> {s}"])]
+#[case::with_time_but_no_impl(&["levels-rzcobs", "--log-format", "{t} [{L}] Location<{f}:{l}> {s}"])]
+#[case::without_time_but_with_impl(&["levels-with-timestamp", "--log-format", "[{L}] Location<{f}:{l}> {s}"])]
+#[case::host_without_time(&["levels-rzcobs", "--host-log-format", "[{L}] Location<{f}:{l}> {s}"])]
+#[case::host_with_timestamp(&["levels-with-timestamp", "--host-log-format", "{t} [{L}] Location<{f}:{l}> {s}"])]
+#[serial]
+#[ignore = "requires the target hardware to be present"]
+fn log_format(#[case] args: &[&str]) {
+    // Act
+    let run_result = run(args, false);
+
+    // Assert
+    assert_eq!(true, run_result.exit_status.success());
+    insta::assert_snapshot!(run_result.output);
+}
