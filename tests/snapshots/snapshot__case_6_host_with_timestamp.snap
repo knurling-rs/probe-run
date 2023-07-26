@@ -1,15 +1,19 @@
 ---
 source: tests/snapshot.rs
-assertion_line: 109
+assertion_line: 143
 expression: run_result.output
 
 ---
-(HOST) INFO  flashing program (2 pages / 8.00 KiB)
-(HOST) INFO  success!
-(HOST) WARN  logger format contains timestamp but no timestamp implementation was provided; consider removing the timestamp `{t}` from the logger format  or provide a `defmt::timestamp!` implementation
+<time> [INFO ] Location<main.rs:203> flashing program (2 pages / 8.00 KiB)
+<time> [INFO ] Location<main.rs:190> success!
 ────────────────────────────────────────────────────────────────────────────────
-<time> ERROR panicked at 'explicit panic'
+0 INFO  info
+1 TRACE trace
+2 WARN  warn
+3 DEBUG debug
+4 ERROR error
+println
 ────────────────────────────────────────────────────────────────────────────────
-(HOST) INFO  program has used at least 0.16/254.93 KiB (0.1%) of stack space
-(HOST) ERROR the program panicked
+<time> [INFO ] Location<canary.rs:125> program has used at least 0.23/254.93 KiB (0.1%) of stack space
+<time> [INFO ] Location<mod.rs:131> device halted without error
 

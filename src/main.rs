@@ -78,9 +78,10 @@ fn run_target_program(
     if let Some(table) = &elf.defmt_table {
         if logger_info.has_timestamp() && !table.has_timestamp() {
             log::warn!(
-                "logger format contains timestamp but no timestamp implementation was provided"
+                "logger format contains timestamp but no timestamp implementation \
+                was provided; consider removing the timestamp `{{t}}` from the \
+                logger format  or provide a `defmt::timestamp!` implementation"
             );
-            log::warn!("consider removing the timestamp from the logger format `{{t}}` or provide a `defmt::timestamp!` implementation");
         }
     }
 
