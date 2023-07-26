@@ -80,6 +80,7 @@ fn run_target_program(
             log::warn!(
                 "logger format contains timestamp but no timestamp implementation was provided"
             );
+            log::warn!("consider removing the timestamp from the logger format `{{t}}` or provide a `defmt::timestamp!` implementation");
         }
     }
 
