@@ -60,10 +60,24 @@ pub struct Opts {
     list_probes: bool,
 
     /// Applies the given format to the log output.
-    #[arg(long)]
+    /// 
+    /// The arguments between curly braces are placeholders for log metadata.
+    /// The following arguments are supported:
+    /// - {f} : file name (e.g. "main.rs")
+    /// - {F} : file path (e.g. "src/bin/main.rs")
+    /// - {l} : line number
+    /// - {L} : log level (e.g. "INFO", "DEBUG", etc)
+    /// - {m} : module path (e.g. "foo::bar::some_function")
+    /// - {s} : the actual log
+    /// - {t} : log timestamp
+    ///
+    /// For example, with the format "{t} [{L}] Location<{f}:{l}> {s}"
+    /// a log would look like this:
+    /// "23124 [INFO ] Location<main.rs:23> Hello, world!"
+    #[arg(long, verbatim_doc_comment)]
     pub log_format: Option<String>,
 
-    /// Applies the given format to the host log output.
+    /// Applies the given format to the host log output. (see --log-format)
     #[arg(long)]
     pub host_log_format: Option<String>,
 
