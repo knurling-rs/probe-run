@@ -6,9 +6,8 @@ expression: run_result.output
 ---
 (HOST) INFO  flashing program (2 pages / 8.00 KiB)
 (HOST) INFO  success!
-(HOST) WARN  logger format contains timestamp but no timestamp implementation was provided; consider removing the timestamp `{t}` from the logger format  or provide a `defmt::timestamp!` implementation
 ────────────────────────────────────────────────────────────────────────────────
-<time> ERROR panicked at 'explicit panic'
+ERROR panicked at 'explicit panic'
 ────────────────────────────────────────────────────────────────────────────────
 (HOST) INFO  program has used at least 0.16/254.93 KiB (0.1%) of stack space
 stack backtrace:

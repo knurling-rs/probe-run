@@ -8,10 +8,10 @@ expression: run_result.output
 (HOST) DEBUG opened probe
 (HOST) DEBUG started session
 (HOST) INFO  flashing program (2 pages / 8.00 KiB)
-(HOST) DEBUG Erased sector of size 4096 bytes in 121 ms
-(HOST) DEBUG Erased sector of size 4096 bytes in 100 ms
-(HOST) DEBUG Programmed page of size 4096 bytes in 81 ms
-(HOST) DEBUG Programmed page of size 4096 bytes in 62 ms
+(HOST) DEBUG Erased sector of size 4096 bytes in 116 ms
+(HOST) DEBUG Erased sector of size 4096 bytes in 97 ms
+(HOST) DEBUG Programmed page of size 4096 bytes in 60 ms
+(HOST) DEBUG Programmed page of size 4096 bytes in 70 ms
 (HOST) INFO  success!
 (HOST) DEBUG vector table: VectorTable { initial_stack_pointer: 2003fbc0, hard_fault: 17d3 }
 (HOST) DEBUG RAM region: 0x20000000-0x2003FFFF
@@ -19,15 +19,14 @@ expression: run_result.output
 (HOST) DEBUG section `.bss` is in RAM at 0x2003FBF8..=0x2003FBFF
 (HOST) DEBUG section `.uninit` is in RAM at 0x2003FC00..=0x2003FFFF
 (HOST) DEBUG valid SP range: 0x20000000..=0x2003FBBC
-(HOST) WARN  logger format contains timestamp but no timestamp implementation was provided; consider removing the timestamp `{t}` from the logger format  or provide a `defmt::timestamp!` implementation
 (HOST) DEBUG 261052 bytes of stack available (0x20000000 ..= 0x2003FBBC)
-(HOST) DEBUG painting 254.93 KiB of RAM took 0.031s (8350.31 KiB/s)
+(HOST) DEBUG painting 254.93 KiB of RAM took 0.036s (7076.36 KiB/s)
 (HOST) DEBUG starting device
 (HOST) DEBUG Successfully attached RTT
 ────────────────────────────────────────────────────────────────────────────────
-<time> ERROR panicked at 'explicit panic'
+ERROR panicked at 'explicit panic'
 ────────────────────────────────────────────────────────────────────────────────
-(HOST) DEBUG reading 254.93 KiB of RAM took 0.033s (7764.79 KiB/s)
+(HOST) DEBUG reading 254.93 KiB of RAM took 0.050s (5138.78 KiB/s)
 (HOST) DEBUG stack was touched at 0x2003FB20
 (HOST) INFO  program has used at least 0.16/254.93 KiB (0.1%) of stack space
 (HOST) TRACE 0x000017d2: found FDE for 0x000017d2 .. 0x000017ea at offset 5672

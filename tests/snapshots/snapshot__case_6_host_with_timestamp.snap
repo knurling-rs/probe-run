@@ -4,14 +4,15 @@ assertion_line: 143
 expression: run_result.output
 
 ---
-<time> [INFO ] Location<main.rs:203> flashing program (2 pages / 8.00 KiB)
-<time> [INFO ] Location<main.rs:190> success!
+<time> [INFO ] Location<main.rs:209> flashing program (2 pages / 8.00 KiB)
+<time> [INFO ] Location<main.rs:196> success!
+<time> [WARN ] Location<main.rs:86> `defmt::timestamp!` implementation was found, but timestamp is not part of the log format; consider adding the timestamp `{t}` argument to the log format
 ────────────────────────────────────────────────────────────────────────────────
-0 INFO  info
-1 TRACE trace
-2 WARN  warn
-3 DEBUG debug
-4 ERROR error
+INFO  info
+TRACE trace
+WARN  warn
+DEBUG debug
+ERROR error
 println
 ────────────────────────────────────────────────────────────────────────────────
 <time> [INFO ] Location<canary.rs:125> program has used at least 0.23/254.93 KiB (0.1%) of stack space

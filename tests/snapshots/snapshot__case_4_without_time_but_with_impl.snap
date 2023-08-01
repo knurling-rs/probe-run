@@ -6,6 +6,7 @@ expression: run_result.output
 ---
 (HOST) INFO  flashing program (2 pages / 8.00 KiB)
 (HOST) INFO  success!
+(HOST) WARN  `defmt::timestamp!` implementation was found, but timestamp is not part of the log format; consider adding the timestamp `{t}` argument to the log format
 ────────────────────────────────────────────────────────────────────────────────
 [INFO ] Location<levels.rs:10> info
 [TRACE] Location<levels.rs:11> trace
