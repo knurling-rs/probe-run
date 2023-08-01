@@ -59,6 +59,28 @@ pub struct Opts {
     #[arg(long)]
     list_probes: bool,
 
+    /// Applies the given format to the log output.
+    ///
+    /// The arguments between curly braces are placeholders for log metadata.
+    /// The following arguments are supported:
+    /// - {f} : file name (e.g. "main.rs")
+    /// - {F} : file path (e.g. "src/bin/main.rs")
+    /// - {l} : line number
+    /// - {L} : log level (e.g. "INFO", "DEBUG", etc)
+    /// - {m} : module path (e.g. "foo::bar::some_function")
+    /// - {s} : the actual log
+    /// - {t} : log timestamp
+    ///
+    /// For example, with the format "{t} [{L}] Location<{f}:{l}> {s}"
+    /// a log would look like this:
+    /// "23124 [INFO ] Location<main.rs:23> Hello, world!"
+    #[arg(long, verbatim_doc_comment)]
+    pub log_format: Option<String>,
+
+    /// Applies the given format to the host log output. (see --log-format)
+    #[arg(long)]
+    pub host_log_format: Option<String>,
+
     /// Whether to measure the program's stack consumption.
     #[arg(long)]
     pub measure_stack: bool,
@@ -106,22 +128,44 @@ const HELPER_CMDS: [&str; 3] = ["list_chips", "list_probes", "version"];
 pub fn handle_arguments() -> anyhow::Result<i32> {
     let opts = Opts::parse();
     let verbose = opts.verbose;
+    let mut log_format = opts.log_format.as_deref();
+    let mut host_log_format = opts.host_log_format.as_deref();
 
-    defmt_decoder::log::init_logger(verbose >= 1, opts.json, move |metadata| {
-        if defmt_decoder::log::is_defmt_frame(metadata) {
-            true // We want to display *all* defmt frames.
+    const DEFAULT_LOG_FORMAT: &str = "{L} {s}\n└─ {m} @ {F}:{l}";
+    const DEFAULT_HOST_LOG_FORMAT: &str = "(HOST) {L} {s}";
+    const DEFAULT_VERBOSE_HOST_LOG_FORMAT: &str = "(HOST) {L} {s}\n└─ {m} @ {F}:{l}";
+
+    if log_format.is_none() {
+        log_format = Some(DEFAULT_LOG_FORMAT);
+    }
+
+    if host_log_format.is_none() {
+        if verbose == 0 {
+            host_log_format = Some(DEFAULT_HOST_LOG_FORMAT);
         } else {
-            // Log depending on how often the `--verbose` (`-v`) cli-param is supplied:
-            //   * 0: log everything from probe-run, with level "info" or higher
-            //   * 1: log everything from probe-run
-            //   * 2 or more: log everything
-            match verbose {
-                0 => metadata.target().starts_with("probe_run") && metadata.level() <= Level::Info,
-                1 => metadata.target().starts_with("probe_run"),
-                _ => true,
-            }
+            host_log_format = Some(DEFAULT_VERBOSE_HOST_LOG_FORMAT);
         }
-    });
+    }
+
+    let logger_info =
+        defmt_decoder::log::init_logger(log_format, host_log_format, opts.json, move |metadata| {
+            if defmt_decoder::log::is_defmt_frame(metadata) {
+                true // We want to display *all* defmt frames.
+            } else {
+                // Log depending on how often the `--verbose` (`-v`) cli-param is supplied:
+                //   * 0: log everything from probe-run, with level "info" or higher
+                //   * 1: log everything from probe-run
+                //   * 2 or more: log everything
+                match verbose {
+                    0 => {
+                        metadata.target().starts_with("probe_run")
+                            && metadata.level() <= Level::Info
+                    }
+                    1 => metadata.target().starts_with("probe_run"),
+                    _ => true,
+                }
+            }
+        });
 
     if opts.measure_stack {
         log::warn!("use of deprecated option `--measure-stack`: Has no effect and will vanish on next breaking release")
@@ -137,7 +181,7 @@ pub fn handle_arguments() -> anyhow::Result<i32> {
         print_chips();
         Ok(EXIT_SUCCESS)
     } else if let (Some(elf), Some(chip)) = (opts.elf.as_deref(), opts.chip.as_deref()) {
-        crate::run_target_program(elf, chip, &opts)
+        crate::run_target_program(elf, chip, &opts, logger_info)
     } else {
         unreachable!("due to `StructOpt` constraints")
     }

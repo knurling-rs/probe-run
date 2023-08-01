@@ -1,14 +1,19 @@
 ---
 source: tests/snapshot.rs
-assertion_line: 109
+assertion_line: 143
 expression: run_result.output
 
 ---
-(HOST) INFO  flashing program (2 pages / 8.00 KiB)
-(HOST) INFO  success!
+[INFO ] Location<main.rs:209> flashing program (2 pages / 8.00 KiB)
+[INFO ] Location<main.rs:196> success!
 ────────────────────────────────────────────────────────────────────────────────
-ERROR panicked at 'explicit panic'
+INFO  info
+TRACE trace
+WARN  warn
+DEBUG debug
+ERROR error
+println
 ────────────────────────────────────────────────────────────────────────────────
-(HOST) INFO  program has used at least 0.16/254.93 KiB (0.1%) of stack space
-(HOST) ERROR the program panicked
+[INFO ] Location<canary.rs:125> program has used at least 0.23/254.93 KiB (0.1%) of stack space
+[INFO ] Location<mod.rs:131> device halted without error
 

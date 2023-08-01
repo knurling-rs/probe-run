@@ -6,11 +6,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+- [#416] Add support for log_format option for defmt decoder
 - [#410] Simplify canary
 - [#405] Also enable merge queue for changelog enforcer
 - [#404] Switch from bors to merge queue
 - [#402] Do not panic if locations do not contain the frame
 
+[#416]: https://github.com/knurling-rs/probe-run/pull/416
 [#410]: https://github.com/knurling-rs/probe-run/pull/410
 [#405]: https://github.com/knurling-rs/probe-run/pull/405
 [#404]: https://github.com/knurling-rs/probe-run/pull/404

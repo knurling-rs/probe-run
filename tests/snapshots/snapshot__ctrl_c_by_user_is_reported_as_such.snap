@@ -1,6 +1,6 @@
 ---
 source: tests/snapshot.rs
-assertion_line: 124
+assertion_line: 125
 expression: run_result.output
 
 ---
