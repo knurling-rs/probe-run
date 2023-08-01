@@ -21,6 +21,7 @@ fn run(args: &[&str], terminate: bool) -> RunResult {
     let (mut reader, mut handle) = run_command(args);
 
     if terminate {
+        #[cfg(target_family = "unix")]
         wait_and_terminate(&handle);
     }
 
@@ -38,6 +39,7 @@ fn run(args: &[&str], terminate: bool) -> RunResult {
     }
 }
 
+#[cfg(target_family = "unix")]
 fn wait_and_terminate(handle: &Child) {
     // sleep a bit so that child can process the input
     thread::sleep(Duration::from_secs(5));
