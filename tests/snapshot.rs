@@ -139,6 +139,6 @@ fn log_format(#[case] args: &[&str]) {
     let run_result = run(args, false);
 
     // Assert
-    assert_eq!(true, run_result.exit_status.success());
+    assert!(run_result.exit_status.success());
     insta::assert_snapshot!(run_result.output);
 }
