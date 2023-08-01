@@ -80,7 +80,12 @@ impl Subroutine {
         current_dir: &Path,
         symtab: &SymbolMap<SymbolMapName>,
     ) -> Option<Vec<Subroutine>> {
-        let frames: Vec<_> = addr2line.find_frames(pc as u64).ok()?.collect().ok()?;
+        let frames = addr2line
+            .find_frames(pc as u64)
+            .skip_all_loads()
+            .ok()?
+            .collect::<Vec<_>>()
+            .ok()?;
 
         let top_subroutine = frames.last();
 

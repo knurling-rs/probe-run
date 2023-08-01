@@ -11,7 +11,7 @@ repository = "https://github.com/knurling-rs/probe-run"
 version = "0.3.9"
 
 [dependencies]
-addr2line = { version = "0.19", default-features = false, features = [
+addr2line = { version = "0.20", default-features = false, features = [
     "fallible-iterator",
     "std-object",
     "rustc-demangle",
@@ -24,8 +24,8 @@ defmt-decoder = { version = "=0.3.8", features = ["unstable"] }
 gimli = { version = "0.27", default-features = false }
 git-version = "0.3"
 log = "0.4"
-object = { version = "0.30", default-features = false }
-probe-rs = "0.18"
+object = { version = "0.31", default-features = false }
+probe-rs = "0.20"
 signal-hook = "0.3"
 
 [dev-dependencies]
@@ -34,7 +34,7 @@ dirs = "5"
 insta = "~1.11"
 os_pipe = "1.0"
 pretty_assertions = "1"
-rstest = { version = "0.17", default-features = false }
+rstest = { version = "0.18", default-features = false }
 nix = "0.26"
 serial_test = { version = "2", default-features = false }
 
