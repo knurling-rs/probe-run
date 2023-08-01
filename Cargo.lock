@@ -11,7 +11,7 @@ dependencies = [
  "cpp_demangle",
  "fallible-iterator",
  "gimli",
- "object",
+ "object 0.30.3",
  "rustc-demangle",
 ]
 
@@ -264,9 +264,9 @@ dependencies = [
 
 [[package]]
 name = "defmt-decoder"
-version = "0.3.7"
+version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "126b2b747b6d6783f98dcffd1329ea9e8f864f3a862f7ce0aba3323187806be9"
+checksum = "69494bdf0927405e6d22641d1307c664ad3e9483452b85078940529883945044"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -276,7 +276,8 @@ dependencies = [
  "dissimilar",
  "gimli",
  "log",
- "object",
+ "nom",
+ "object 0.31.1",
  "ryu",
  "serde",
  "serde_json",
@@ -647,6 +648,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "minimal-lexical"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+
+[[package]]
 name = "miniz_oxide"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -670,6 +677,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nom"
+version = "7.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
+dependencies = [
+ "memchr",
+ "minimal-lexical",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -685,6 +702,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea86265d3d3dcb6a27fc51bd29a4bf387fae9d2986b823079d4986af253eb439"
 dependencies = [
  "flate2",
+ "memchr",
+]
+
+[[package]]
+name = "object"
+version = "0.31.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bda667d9f2b5051b8833f59f3bf748b28ef54f850f4fcb389a252aa383866d1"
+dependencies = [
  "memchr",
 ]
 
@@ -792,7 +818,7 @@ dependencies = [
  "kmp",
  "libftdi1-sys",
  "num-traits",
- "object",
+ "object 0.30.3",
  "once_cell",
  "probe-rs-target",
  "rusb",
@@ -831,7 +857,7 @@ dependencies = [
  "insta",
  "log",
  "nix",
- "object",
+ "object 0.30.3",
  "os_pipe",
  "pretty_assertions",
  "probe-rs",
