@@ -6,12 +6,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+## [v0.3.10] - 2023-08-01
+
+- [#417] Release `probe-run v0.3.10`
 - [#416] Add support for log_format option for defmt decoder
 - [#410] Simplify canary
 - [#405] Also enable merge queue for changelog enforcer
 - [#404] Switch from bors to merge queue
 - [#402] Do not panic if locations do not contain the frame
 
+[#417]: https://github.com/knurling-rs/probe-run/pull/417
 [#416]: https://github.com/knurling-rs/probe-run/pull/416
 [#410]: https://github.com/knurling-rs/probe-run/pull/410
 [#405]: https://github.com/knurling-rs/probe-run/pull/405
@@ -499,7 +503,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 Initial release
 
-[Unreleased]: https://github.com/knurling-rs/probe-run/compare/v0.3.9...main
+[Unreleased]: https://github.com/knurling-rs/probe-run/compare/v0.3.10...main
+[v0.3.10]: https://github.com/knurling-rs/probe-run/compare/v0.3.9...v0.3.10
 [v0.3.9]: https://github.com/knurling-rs/probe-run/compare/v0.3.8...v0.3.9
 [v0.3.8]: https://github.com/knurling-rs/probe-run/compare/v0.3.7...v0.3.8
 [v0.3.7]: https://github.com/knurling-rs/probe-run/compare/v0.3.6...v0.3.7
