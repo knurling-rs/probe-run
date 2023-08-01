@@ -60,7 +60,7 @@ pub struct Opts {
     list_probes: bool,
 
     /// Applies the given format to the log output.
-    /// 
+    ///
     /// The arguments between curly braces are placeholders for log metadata.
     /// The following arguments are supported:
     /// - {f} : file name (e.g. "main.rs")
