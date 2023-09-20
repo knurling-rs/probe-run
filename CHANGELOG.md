@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+- [#423] Add better defaults for log format when timestamp is available
+
+[#423]: https://github.com/knurling-rs/probe-run/pull/423
+
 ## [v0.3.10] - 2023-08-01
 
 - [#417] Release `probe-run v0.3.10`
