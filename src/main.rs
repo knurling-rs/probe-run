@@ -126,21 +126,18 @@ fn run_target_program(
             }
         });
 
-
-    if let Some(table) = &elf.defmt_table {
-        if logger_info.has_timestamp() && !table.has_timestamp() {
-            log::warn!(
-                "logger format contains timestamp but no timestamp implementation \
-                was provided; consider removing the timestamp `{{t}}` from the \
-                logger format  or provide a `defmt::timestamp!` implementation"
-            );
-        } else if !logger_info.has_timestamp() && table.has_timestamp() {
-            log::warn!(
-                "`defmt::timestamp!` implementation was found, but timestamp is not \
-                part of the log format; consider adding the timestamp `{{t}}` \
-                argument to the log format"
-            );
-        }
+    if logger_info.has_timestamp() && !is_timestamping_available {
+        log::warn!(
+            "logger format contains timestamp but no timestamp implementation \
+            was provided; consider removing the timestamp `{{t}}` from the \
+            logger format  or provide a `defmt::timestamp!` implementation"
+        );
+    } else if !logger_info.has_timestamp() && is_timestamping_available {
+        log::warn!(
+            "`defmt::timestamp!` implementation was found, but timestamp is not \
+            part of the log format; consider adding the timestamp `{{t}}` \
+            argument to the log format"
+        );
     }
 
     // install stack canary
