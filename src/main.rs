@@ -23,7 +23,10 @@ use std::{
 
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
-use defmt_decoder::{DecodeError, Frame, Locations, StreamDecoder};
+use defmt_decoder::{
+    log::{DefmtLoggerConfig, DefmtLoggerType},
+    DecodeError, Frame, Locations, StreamDecoder,
+};
 use log::Level;
 use probe_rs::{
     config::MemoryRegion,
@@ -43,11 +46,6 @@ use crate::{
 };
 
 const TIMEOUT: Duration = Duration::from_secs(1);
-
-const DEFAULT_LOG_FORMAT_WITH_TIMESTAMP: &str = "{t} {L} {s}\n└─ {m} @ {F}:{l}";
-const DEFAULT_LOG_FORMAT_WITHOUT_TIMESTAMP: &str = "{L} {s}\n└─ {m} @ {F}:{l}";
-const DEFAULT_HOST_LOG_FORMAT: &str = "(HOST) {L} {s}";
-const DEFAULT_VERBOSE_HOST_LOG_FORMAT: &str = "(HOST) {L} {s}\n└─ {m} @ {F}:{l}";
 
 fn main() -> anyhow::Result<()> {
     configure_terminal_colorization();
@@ -83,58 +81,35 @@ fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> any
         false
     };
 
-    let mut log_format = opts.log_format.as_deref();
-    let mut host_log_format = opts.host_log_format.as_deref();
+    let logger_type = if opts.json {
+        DefmtLoggerType::Json
+    } else {
+        DefmtLoggerType::Stdout
+    };
 
-    if log_format.is_none() {
-        log_format = if is_timestamping_available {
-            Some(DEFAULT_LOG_FORMAT_WITH_TIMESTAMP)
+    let logger_config = DefmtLoggerConfig {
+        log_format: opts.log_format.as_deref(),
+        host_log_format: opts.host_log_format.as_deref(),
+        use_verbose_defaults: verbose > 0,
+        is_timestamp_available: is_timestamping_available,
+        logger_type,
+    };
+
+    defmt_decoder::log::init_logger(logger_config, move |metadata| {
+        if defmt_decoder::log::is_defmt_frame(metadata) {
+            true // We want to display *all* defmt frames.
         } else {
-            Some(DEFAULT_LOG_FORMAT_WITHOUT_TIMESTAMP)
-        };
-    }
-
-    if host_log_format.is_none() {
-        if verbose == 0 {
-            host_log_format = Some(DEFAULT_HOST_LOG_FORMAT);
-        } else {
-            host_log_format = Some(DEFAULT_VERBOSE_HOST_LOG_FORMAT);
-        }
-    }
-
-    let logger_info =
-        defmt_decoder::log::init_logger(log_format, host_log_format, opts.json, move |metadata| {
-            if defmt_decoder::log::is_defmt_frame(metadata) {
-                true // We want to display *all* defmt frames.
-            } else {
-                // Log depending on how often the `--verbose` (`-v`) cli-param is supplied:
-                //   * 0: log everything from probe-run, with level "info" or higher
-                //   * 1: log everything from probe-run
-                //   * 2 or more: log everything
-                match verbose {
-                    0 => {
-                        metadata.target().starts_with("probe_run")
-                            && metadata.level() <= Level::Info
-                    }
-                    1 => metadata.target().starts_with("probe_run"),
-                    _ => true,
-                }
+            // Log depending on how often the `--verbose` (`-v`) cli-param is supplied:
+            //   * 0: log everything from probe-run, with level "info" or higher
+            //   * 1: log everything from probe-run
+            //   * 2 or more: log everything
+            match verbose {
+                0 => metadata.target().starts_with("probe_run") && metadata.level() <= Level::Info,
+                1 => metadata.target().starts_with("probe_run"),
+                _ => true,
             }
-        });
-
-    if logger_info.has_timestamp() && !is_timestamping_available {
-        log::warn!(
-            "logger format contains timestamp but no timestamp implementation \
-            was provided; consider removing the timestamp `{{t}}` from the \
-            logger format  or provide a `defmt::timestamp!` implementation"
-        );
-    } else if !logger_info.has_timestamp() && is_timestamping_available {
-        log::warn!(
-            "`defmt::timestamp!` implementation was found, but timestamp is not \
-            part of the log format; consider adding the timestamp `{{t}}` \
-            argument to the log format"
-        );
-    }
+        }
+    });
 
     // install stack canary
     let canary = Canary::install(core, elf, &target_info)?;
