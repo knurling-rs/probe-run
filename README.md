@@ -1,3 +1,5 @@
+> ⚠️ As of 11.10.2023 `probe-run` is in maintainance mode. We recommend everyone to switch to `probe-rs`. Read following article on the why and on how to migrate: https://ferrous-systems.com/blog/probe-run-deprecation/
+
 # `probe-run`
 
 > Runs embedded programs just like native ones
