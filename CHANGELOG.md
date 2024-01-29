@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 ## [Unreleased]
 
+## [v0.3.11] - 2024-01-29
+
 - [#423] Add better defaults for log format when timestamp is available
 
 [#423]: https://github.com/knurling-rs/probe-run/pull/423
@@ -507,7 +509,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 
 Initial release
 
-[Unreleased]: https://github.com/knurling-rs/probe-run/compare/v0.3.10...main
+[Unreleased]: https://github.com/knurling-rs/probe-run/compare/v0.3.11...main
+[v0.3.10]: https://github.com/knurling-rs/probe-run/compare/v0.3.10...v0.3.11
 [v0.3.10]: https://github.com/knurling-rs/probe-run/compare/v0.3.9...v0.3.10
 [v0.3.9]: https://github.com/knurling-rs/probe-run/compare/v0.3.8...v0.3.9
 [v0.3.8]: https://github.com/knurling-rs/probe-run/compare/v0.3.7...v0.3.8
