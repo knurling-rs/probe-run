@@ -62,10 +62,11 @@ fn main() -> anyhow::Result<()> {
 recommend everyone to switch to `probe-rs`. Read following article on the why \
 and on how to migrate: https://ferrous-systems.com/blog/probe-run-deprecation/"]
 fn deprecated() {
-    eprintln!("⚠️  As of 11.10.2023 `probe-run` is in maintainance mode. We \
-    recommend everyone to switch to `probe-rs`. Read following article on the \
-    why and on how to migrate: \
-    https://ferrous-systems.com/blog/probe-run-deprecation/\n");
+    eprintln!(
+        "⚠️  As of 11.10.2023 `probe-run` is in maintainance mode. We recommend \
+        everyone to switch to `probe-rs`. Read following article on the why and \
+        on how to migrate: https://ferrous-systems.com/blog/probe-run-deprecation/\n"
+    );
 }
 
 fn run_target_program(elf_path: &Path, chip_name: &str, opts: &cli::Opts) -> anyhow::Result<i32> {
